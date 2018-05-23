@@ -218,9 +218,9 @@ def submit_thread(queue):
 
                     # Ingests file. Removes file from terminal once ingested
                     print '[Ingesting:' + os.path.basename(ingest_path) + ']'
-                    al_client.ingest(ingest_path,
-                                     metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                     nq=queue)
+                    terminal.ingest(ingest_path,
+                                    metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
+                                    nq=queue)
                     os.system('rm -f \'' + ingest_path + '\'')
 
                 else:
@@ -244,7 +244,7 @@ def receive_thread(queue):
     while True:
 
         # Takes all messages from the Assemblyline server and stores in list
-        msgs = al_client.ingest.get_message_list(queue)
+        msgs = terminal.ingest.get_message_list(queue)
 
         # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
         # files have returned messages from the server. If all these are true then we are finished ingesting files and
@@ -285,7 +285,7 @@ if __name__ == '__main__':
     observer.start()
 
     # Sets up Assemblyline client
-    al_client = Client(al_instance, apikey=('admin', 'S7iqqLC48e^Dk@VQ6kvnyPOFl7shuvsilx8V^QpOuy&s7KYv'), verify=False)
+    terminal = Client(al_instance, apikey=('admin', 'S7iqqLC48e^Dk@VQ6kvnyPOFl7shuvsilx8V^QpOuy&s7KYv'), verify=False)
 
     # Sets up server communication threads
     queue_name = 'ingest_queue'
