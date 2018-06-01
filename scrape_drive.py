@@ -182,7 +182,7 @@ def clear_files(device_id):
         os.system('rm -rf ' + ingest_dir + '/*')
         finished = True
         print '\n--- Temporary malicious files have been cleared\n'
-        print '\n============ All devices successfully removed\n'
+        print '\n============ All devices successfully removed\n\n'
 
 
 def submit_thread(queue):
@@ -278,6 +278,9 @@ def receive_thread(queue):
 if __name__ == '__main__':
 
     my_log = my_logger.logger
+
+    os.system('mkdir -p ' + mount_dir)
+    os.system('mkdir -p ' + ingest_dir)
 
     # Sets up monitor and observer thread to run in background to detect addition or removal of devices
     monitor = pyudev.Monitor.from_netlink(context)
