@@ -10,7 +10,7 @@ import my_logger
 
 # ---------- Customizable paths
 # URL of Assemblyline instance
-al_instance = 'https://butterslax.hopto.org/'
+al_instance = 'https://134.190.171.253/'
 # Directory where we will mount our block device
 mount_dir = '/home/user/al_ui/temp_device'
 # Directory where all imported files (copied from block device) are temporarily stored before being sent to AL
@@ -23,7 +23,7 @@ context = pyudev.Context()
 active_devices = []
 # Number of partitions who have been recognized but who have not yet had their files imported
 partition_toread = 0
-# True if user wants to neuter files when importing. True by default
+# True if user wants to neuter files when importing. False by default
 neuter = False
 # Lock object for allowing only one partition to mount at a time
 mount_lock = Lock()
@@ -220,7 +220,7 @@ def submit_thread(queue):
                     print '[Ingesting:' + os.path.basename(ingest_path) + ']'
                     terminal.ingest(ingest_path,
                                     metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                    nq=queue)
+                                    nq=queue, ingest_type='TERMINAL')
                     os.system('rm -f \'' + ingest_path + '\'')
 
                 else:
@@ -288,7 +288,8 @@ if __name__ == '__main__':
     observer.start()
 
     # Sets up Assemblyline client
-    terminal = Client(al_instance, apikey=('admin', 'S7iqqLC48e^Dk@VQ6kvnyPOFl7shuvsilx8V^QpOuy&s7KYv'), verify=False)
+    # terminal = Client(al_instance, apikey=('admin', 'S7iqqLC48e^Dk@VQ6kvnyPOFl7shuvsilx8V^QpOuy&s7KYv'), verify=False)
+    terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
 
     # Sets up server communication threads
     queue_name = 'ingest_queue'
