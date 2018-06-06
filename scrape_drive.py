@@ -260,6 +260,7 @@ def receive_thread(queue):
     global partition_toread
     global list_to_submit
     global num_waiting
+    global loading
 
     while True:
 
@@ -273,6 +274,9 @@ def receive_thread(queue):
         if partition_toread == 0 and len(list_to_submit) == 0 and num_waiting == 0 and not finished:
             kiosk('\nAll files have been successfully ingested\n')
             finished = True
+            if loading:
+                socketIO.emit('device_event', 'done_loading')
+                loading = False
             continue
 
         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
