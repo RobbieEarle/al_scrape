@@ -4,6 +4,10 @@ import logging
 import logging.handlers
 import argparse
 import sys
+# from socketIO_client import SocketIO
+
+# ---------- Kiosk communication
+# socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
 
 LOG_FILENAME = "/tmp/al_scrape.log"
 LOG_LEVEL = logging.DEBUG

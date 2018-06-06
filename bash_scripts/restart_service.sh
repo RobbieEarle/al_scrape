@@ -1,0 +1,1 @@
+rm -f /tmp/al_scrape.log

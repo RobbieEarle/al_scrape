@@ -7,6 +7,7 @@ from threading import Thread, Lock
 from inotify import adapters
 from assemblyline_client import Client
 import my_logger
+from socketIO_client import SocketIO
 
 # ---------- Customizable paths
 # URL of Assemblyline instance
@@ -28,7 +29,7 @@ neuter = False
 # Lock object for allowing only one partition to mount at a time
 mount_lock = Lock()
 
-# ---------- Server communication
+# ---------- Assemblyline Server communication
 # List of files that have been imported from our drive, and are ready to be submitted to AL
 list_to_submit = []
 # List holds all potentially malicious files as determined by AL output
@@ -37,6 +38,17 @@ mal_files = []
 num_waiting = 0
 # Whether or not our application has finished scanning all imported files
 finished = True
+
+# ---------- Kiosk communication
+# Creates socket between web app and this module
+socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+# True when files are currently being uploaded
+loading = False
+
+
+def kiosk(msg):
+    print msg
+    socketIO.emit('to_kiosk', msg)
 
 
 def block_event(action, device):
@@ -50,6 +62,7 @@ def block_event(action, device):
     global partition_toread
     global finished
     global active_devices
+    global socketIO
 
     # Called when a device is added
     if action == 'add':
@@ -60,7 +73,8 @@ def block_event(action, device):
 
             # Announces a new device has been detected
             if device.get('DEVTYPE') == 'disk':
-                print '\n--- New block device detected: ' + device_id
+                socketIO.emit('device_event', 'connected')
+                kiosk('\nNew block device detected: ' + device_id)
 
                 # Makes new folder to hold partitions from this disk
                 path_new = os.path.normpath(ingest_dir + device_id)
@@ -79,8 +93,8 @@ def block_event(action, device):
     # Called when the active device is removed. Clears the imported cart files
     elif action == 'remove':
         if device.get('DEVTYPE') == 'partition':
-            print '\n--- Partition removed'
-            print 'Removing temp files'
+            kiosk('\nPartition removed')
+            kiosk('Removing temp files')
             clear_files(device.device_node)
 
 
@@ -116,7 +130,7 @@ def copy_files(device_id):
                 # os.system('sudo /home/user/al_ui/bash_scripts/image_device_firmware.sh ' + device_id +
                 # ' /home/user/al_ui/temp_device/usb_firm.img')
 
-                print '\nPartition successfully loaded: ' + device_id + '\n'
+                kiosk('\nPartition successfully loaded: ' + device_id + '\n')
 
                 # Makes new directory for this partition
                 os.system('mkdir -p ' + ingest_dir + device_id)
@@ -149,7 +163,7 @@ def neuter_files(raw_dir, device_id):
     """
 
     # Walks through files in given directory one by one, converting to CART and sending to imported_files
-    print '  Uploading files...'
+    kiosk('Uploading files...')
     for root, dirs, files in os.walk(raw_dir):
         for raw_file in files:
             output_file = ingest_dir + device_id + '/' + raw_file + '.cart'
@@ -173,7 +187,7 @@ def clear_files(device_id):
 
     # Removes the folder in imported_files containing the files corresponding to the removed device
     os.system('rm -rf ' + ingest_dir + device_id)
-    print '  Temp files successfully removed: ' + device_id
+    kiosk('Temp files successfully removed: ' + device_id)
 
     # If all devices have been removed, resets list and clears the imported files directory
     if len(active_devices) == 0:
@@ -181,8 +195,9 @@ def clear_files(device_id):
         mal_files = []
         os.system('rm -rf ' + ingest_dir + '/*')
         finished = True
-        print '\n--- Temporary malicious files have been cleared\n'
-        print '\n============ All devices successfully removed\n\n'
+        kiosk('\nTemporary malicious files have been cleared\n')
+        kiosk('\nAll devices successfully removed\n\n')
+        socketIO.emit('device_event', 'disconnected')
 
 
 def submit_thread(queue):
@@ -195,12 +210,17 @@ def submit_thread(queue):
 
     global list_to_submit
     global num_waiting
+    global loading
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while True:
 
         # Checks to make sure there are still files to be ingested
         if len(list_to_submit):
+
+            if not loading:
+                socketIO.emit('device_event', 'loading')
+                loading = True
 
             # Pops a file path from the list of files to be submitted
             ingest_path = list_to_submit.pop()
@@ -217,14 +237,14 @@ def submit_thread(queue):
                     num_waiting += 1
 
                     # Ingests file. Removes file from terminal once ingested
-                    print '[Ingesting:' + os.path.basename(ingest_path) + ']'
+                    kiosk('Ingesting: ' + os.path.basename(ingest_path))
                     terminal.ingest(ingest_path,
                                     metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
                                     nq=queue, ingest_type='TERMINAL')
                     os.system('rm -f \'' + ingest_path + '\'')
 
                 else:
-                    print 'Unable to ingest, empty file: ' + os.path.basename(ingest_path)
+                    kiosk('Unable to ingest, empty file: ' + os.path.basename(ingest_path))
 
 
 def receive_thread(queue):
@@ -251,7 +271,7 @@ def receive_thread(queue):
         # our submit and receive threads are shut down.
         # print partition_toread, len(list_to_submit), num_waiting, finished, len(mal_files), len(list_to_submit)
         if partition_toread == 0 and len(list_to_submit) == 0 and num_waiting == 0 and not finished:
-            print '\n============ All files have been successfully ingested\n'
+            kiosk('\nAll files have been successfully ingested\n')
             finished = True
             continue
 
@@ -261,11 +281,11 @@ def receive_thread(queue):
         for msg in msgs:
             score = msg['metadata']['al_score']
             sid = msg['alert']['sid']
-            print '  output: ' + os.path.basename(msg['metadata']['path'])
-            print '  sid: %s\tscore: %d' % (sid, score),
+            kiosk('output: ' + os.path.basename(msg['metadata']['path']))
+            kiosk('sid: %s\tscore: %d' % (sid, score),)
 
             if score >= 500:
-                print '  - WARNING'
+                kiosk('-- WARNING --')
                 mal_files.append(sid)
 
             else:
