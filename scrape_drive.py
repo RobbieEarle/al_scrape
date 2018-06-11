@@ -8,6 +8,7 @@ from inotify import adapters
 from assemblyline_client import Client
 import my_logger
 from socketIO_client import SocketIO
+import time
 
 # ---------- Customizable paths
 # URL of Assemblyline instance
@@ -74,6 +75,8 @@ def block_event(action, device):
             # Announces a new device has been detected
             if device.get('DEVTYPE') == 'disk':
                 socketIO.emit('device_event', 'connected')
+                kiosk('clear')
+                time.sleep(0.1)
                 kiosk('\n--- New block device detected: ' + device_id)
 
                 # Makes new folder to hold partitions from this disk
@@ -196,8 +199,12 @@ def clear_files(device_id):
         os.system('rm -rf ' + ingest_dir + '/*')
         finished = True
         kiosk('Temporary malicious files have been cleared')
-        kiosk('\nAll devices successfully removed')
+        kiosk('\n--- All devices successfully removed')
         socketIO.emit('device_event', 'disconnected')
+        time.sleep(0.1)
+        kiosk('\r\n')
+        # time.sleep(5)
+        # kiosk('clear')
 
 
 def submit_thread(queue):
@@ -272,11 +279,13 @@ def receive_thread(queue):
         # our submit and receive threads are shut down.
         # print partition_toread, len(list_to_submit), num_waiting, finished, len(mal_files), len(list_to_submit)
         if partition_toread == 0 and len(list_to_submit) == 0 and num_waiting == 0 and not finished:
-            kiosk('\nAll files have been successfully ingested\n')
+            kiosk('\n--- All files have been successfully ingested')
             finished = True
             if loading:
                 socketIO.emit('device_event', 'done_loading')
                 loading = False
+            time.sleep(0.1)
+            kiosk('\r\n')
             continue
 
         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
@@ -286,7 +295,7 @@ def receive_thread(queue):
             new_file = os.path.basename(msg['metadata']['path'])
             score = msg['metadata']['al_score']
             sid = msg['alert']['sid']
-            kiosk('   Server Received: ' + new_file + "\t" + 'sid: %s\tscore: %d' % (sid, score),)
+            kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
 
             if score >= 500:
                 kiosk('     [ ! ] WARNING - Potentially malicious file: ' + new_file)
