@@ -202,9 +202,7 @@ def clear_files(device_id):
         kiosk('\n--- All devices successfully removed')
         socketIO.emit('device_event', 'disconnected')
         time.sleep(0.1)
-        kiosk('\r\n')
-        # time.sleep(5)
-        # kiosk('clear')
+        kiosk('scroll_main')
 
 
 def submit_thread(queue):
@@ -285,7 +283,7 @@ def receive_thread(queue):
                 socketIO.emit('device_event', 'done_loading')
                 loading = False
             time.sleep(0.1)
-            kiosk('\r\n')
+            kiosk('scroll_results')
             continue
 
         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
