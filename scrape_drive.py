@@ -74,7 +74,7 @@ def block_event(action, device):
             # Announces a new device has been detected
             if device.get('DEVTYPE') == 'disk':
                 socketIO.emit('device_event', 'connected')
-                kiosk('\nNew block device detected: ' + device_id)
+                kiosk('\n--- New block device detected: ' + device_id)
 
                 # Makes new folder to hold partitions from this disk
                 path_new = os.path.normpath(ingest_dir + device_id)
@@ -93,8 +93,8 @@ def block_event(action, device):
     # Called when the active device is removed. Clears the imported cart files
     elif action == 'remove':
         if device.get('DEVTYPE') == 'partition':
-            kiosk('\nPartition removed')
-            kiosk('Removing temp files')
+            kiosk('Partition removed')
+            kiosk('\nRemoving temp files')
             clear_files(device.device_node)
 
 
@@ -130,7 +130,7 @@ def copy_files(device_id):
                 # os.system('sudo /home/user/al_ui/bash_scripts/image_device_firmware.sh ' + device_id +
                 # ' /home/user/al_ui/temp_device/usb_firm.img')
 
-                kiosk('\nPartition successfully loaded: ' + device_id + '\n')
+                kiosk('\n--- Partition successfully loaded: ' + device_id)
 
                 # Makes new directory for this partition
                 os.system('mkdir -p ' + ingest_dir + device_id)
@@ -195,8 +195,8 @@ def clear_files(device_id):
         mal_files = []
         os.system('rm -rf ' + ingest_dir + '/*')
         finished = True
-        kiosk('\nTemporary malicious files have been cleared\n')
-        kiosk('\nAll devices successfully removed\n\n')
+        kiosk('Temporary malicious files have been cleared')
+        kiosk('\nAll devices successfully removed')
         socketIO.emit('device_event', 'disconnected')
 
 
@@ -283,13 +283,13 @@ def receive_thread(queue):
         # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time
         # a result is output
         for msg in msgs:
+            new_file = os.path.basename(msg['metadata']['path'])
             score = msg['metadata']['al_score']
             sid = msg['alert']['sid']
-            kiosk('output: ' + os.path.basename(msg['metadata']['path']))
-            kiosk('sid: %s\tscore: %d' % (sid, score),)
+            kiosk('   Server Received: ' + new_file + "\t" + 'sid: %s\tscore: %d' % (sid, score),)
 
             if score >= 500:
-                kiosk('-- WARNING --')
+                kiosk('     [ ! ] WARNING - Potentially malicious file: ' + new_file)
                 mal_files.append(sid)
 
             else:
