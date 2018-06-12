@@ -184,6 +184,7 @@ def clear_files(device_id):
     global mal_files
     global finished
     global partition_toread
+    global loading
 
     if len(active_devices) != 0:
         active_devices.remove(device_id)
@@ -198,11 +199,13 @@ def clear_files(device_id):
         mal_files = []
         os.system('rm -rf ' + ingest_dir + '/*')
         finished = True
+        loading = False
         kiosk('Temporary malicious files have been cleared')
         kiosk('\n--- All devices successfully removed')
         socketIO.emit('device_event', 'disconnected')
         time.sleep(0.1)
-        kiosk('scroll_main')
+        kiosk("\r\n")
+        socketIO.emit('scroll', 'main')
 
 
 def submit_thread(queue):
@@ -283,7 +286,8 @@ def receive_thread(queue):
                 socketIO.emit('device_event', 'done_loading')
                 loading = False
             time.sleep(0.1)
-            kiosk('scroll_results')
+            kiosk("\r\n")
+            socketIO.emit('scroll', 'results')
             continue
 
         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
