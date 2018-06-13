@@ -10,6 +10,9 @@ import my_logger
 from socketIO_client import SocketIO
 import time
 
+
+# ============== Default Property Values ==============
+
 # ---------- Customizable paths
 # URL of Assemblyline instance
 al_instance = 'https://134.190.171.253/'
@@ -34,6 +37,8 @@ mount_lock = Lock()
 # List of files that have been imported from our drive, and are ready to be submitted to AL
 list_to_submit = []
 # List holds all potentially malicious files as determined by AL output
+all_files = []
+# List holds all potentially malicious files as determined by AL output
 mal_files = []
 # Number of files that have been submitted and are awaiting a response from AL
 num_waiting = 0
@@ -47,10 +52,19 @@ socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
 loading = False
 
 
+# ============== Helper Functions ==============
+
 def kiosk(msg):
+    """
+    Handles console output. Sends message to webapp and also logs
+    :param msg: message to be sent
+    :return:
+    """
     print msg
     socketIO.emit('to_kiosk', msg)
 
+
+# ============== Backend Functions ==============
 
 def block_event(action, device):
     """
@@ -208,6 +222,8 @@ def clear_files(device_id):
         socketIO.emit('scroll', 'main')
 
 
+# ============== AL Server Interaction Threads ==============
+
 def submit_thread(queue):
     """
     Watches for files that are added to the imported_files/dev folder; when new files are added, uploads and deletes
@@ -263,6 +279,7 @@ def receive_thread(queue):
     :return:
     """
 
+    global all_files
     global mal_files
     global finished
     global partition_toread
@@ -287,6 +304,8 @@ def receive_thread(queue):
                 loading = False
             time.sleep(0.1)
             kiosk("\r\n")
+            time.sleep(0.1)
+            socketIO.emit('all_files', all_files)
             socketIO.emit('scroll', 'results')
             continue
 
@@ -294,6 +313,7 @@ def receive_thread(queue):
         # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time
         # a result is output
         for msg in msgs:
+            all_files.append(msg)
             new_file = os.path.basename(msg['metadata']['path'])
             score = msg['metadata']['al_score']
             sid = msg['alert']['sid']
@@ -309,6 +329,8 @@ def receive_thread(queue):
             # Decrements the number of submitted files who are awaiting a response from the server
             num_waiting -= 1
 
+
+# ============== Initialization ==============
 
 if __name__ == '__main__':
 
