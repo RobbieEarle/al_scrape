@@ -326,14 +326,16 @@ def receive_thread(queue):
             sid = msg['alert']['sid']
             kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
 
-            full_path = msg['metadata']['path']
-            msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
-
             if score >= 500:
                 kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
-                mal_files.append(msg)
+                full_msg = terminal.submission.full(sid)
+                full_path = full_msg['submission']['metadata']['path']
+                full_msg['submission']['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
+                mal_files.append(full_msg)
 
             else:
+                full_path = msg['metadata']['path']
+                msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
                 pass_files.append(msg)
                 print
 
