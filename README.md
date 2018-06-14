@@ -1,4 +1,4 @@
-# al_scrape
+# Assemblyline Device Scrape Utility
 This script runs perpetually as a background service on a self contained virtual machine, communicating as necessary
 with a remote Assemblyline server. Progress and results are output to the al_da web app running on the host machine.
 
