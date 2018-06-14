@@ -37,7 +37,7 @@ mount_lock = Lock()
 # List of files that have been imported from our drive, and are ready to be submitted to AL
 list_to_submit = []
 # List holds all potentially malicious files as determined by AL output
-all_files = []
+pass_files = []
 # List holds all potentially malicious files as determined by AL output
 mal_files = []
 # Number of files that have been submitted and are awaiting a response from AL
@@ -74,6 +74,8 @@ def block_event(action, device):
     :return:
     """
 
+    global pass_files
+    global mal_files
     global partition_toread
     global finished
     global active_devices
@@ -92,6 +94,9 @@ def block_event(action, device):
                 kiosk('clear')
                 time.sleep(0.1)
                 kiosk('\n--- New block device detected: ' + device_id)
+
+                mal_files = []
+                pass_files = []
 
                 # Makes new folder to hold partitions from this disk
                 path_new = os.path.normpath(ingest_dir + device_id)
@@ -279,7 +284,7 @@ def receive_thread(queue):
     :return:
     """
 
-    global all_files
+    global pass_files
     global mal_files
     global finished
     global partition_toread
@@ -294,8 +299,7 @@ def receive_thread(queue):
 
         # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
         # files have returned messages from the server. If all these are true then we are finished ingesting files and
-        # our submit and receive threads are shut down.
-        # print partition_toread, len(list_to_submit), num_waiting, finished, len(mal_files), len(list_to_submit)
+        # our submit and receive threads are shut down. Once lists have been emitted they are reset.
         if partition_toread == 0 and len(list_to_submit) == 0 and num_waiting == 0 and not finished:
             kiosk('\n--- All files have been successfully ingested')
             finished = True
@@ -305,25 +309,32 @@ def receive_thread(queue):
             time.sleep(0.1)
             kiosk("\r\n")
             time.sleep(0.1)
-            socketIO.emit('all_files', all_files)
+            socketIO.emit('pass_files', pass_files)
+            time.sleep(0.1)
+            socketIO.emit('mal_files', mal_files)
+            time.sleep(0.1)
             socketIO.emit('scroll', 'results')
+
             continue
 
         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
         # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time
         # a result is output
         for msg in msgs:
-            all_files.append(msg)
             new_file = os.path.basename(msg['metadata']['path'])
             score = msg['metadata']['al_score']
             sid = msg['alert']['sid']
             kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
 
+            full_path = msg['metadata']['path']
+            msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
+
             if score >= 500:
-                kiosk('     [ ! ] WARNING - Potentially malicious file: ' + new_file)
-                mal_files.append(sid)
+                kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
+                mal_files.append(msg)
 
             else:
+                pass_files.append(msg)
                 print
 
             # Decrements the number of submitted files who are awaiting a response from the server
