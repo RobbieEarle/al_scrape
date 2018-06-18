@@ -291,6 +291,7 @@ def receive_thread(queue):
     global list_to_submit
     global num_waiting
     global loading
+    global active_devices
 
     while True:
 
@@ -313,7 +314,8 @@ def receive_thread(queue):
             time.sleep(0.1)
             socketIO.emit('mal_files', mal_files)
             time.sleep(0.1)
-            socketIO.emit('scroll', 'results')
+            if len(active_devices) != 0:
+                socketIO.emit('scroll', 'results')
 
             continue
 
