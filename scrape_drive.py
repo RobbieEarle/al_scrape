@@ -38,21 +38,24 @@ mount_lock = Lock()
 terminal = Client
 # List of files that have been imported from our drive, and are ready to be submitted to AL
 list_to_submit = []
+# List of files that have been submitted to AL, on whom we are awaiting a response
 list_to_receive = []
 # List holds all potentially malicious files as determined by AL output
 pass_files = []
 # List holds all potentially malicious files as determined by AL output
 mal_files = []
+# True if our submitting thread is currently active
+submitting = False
+# True if our receiving thread is currently active
+receiving = False
+# True is results have already been output
+results = False
 
 # ---------- Kiosk communication
 # Creates socket between web app and this module
 socketIO = SocketIO
 # True when files are currently being uploaded
 loading = False
-
-
-submitting = False
-receiving = False
 
 
 # ============== Helper Functions ==============
@@ -71,12 +74,21 @@ def kiosk(msg):
 
 
 def refresh():
+    """
+    Refreshes socketio, our assemblyline client, and all arrays used in monitoring progress / results. This
+    is called whenever a new device is plugged in, as the VM on which this script is running has likely
+    been restored to a previous snapshot after the last device was removed. Thus this method is necessary
+    to ensure scrape_drive doesn't attempt to send information to our AL server or to our webapp via an
+    expired socket, and that
+    :return:
+    """
     global socketIO
     global terminal
     global list_to_submit
     global list_to_receive
     global mal_files
     global pass_files
+    global results
 
     socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
     terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
@@ -84,18 +96,27 @@ def refresh():
     list_to_receive = []
     mal_files = []
     pass_files = []
+    results = False
 
 
 def check_done():
+    """
+    Checks whether or not all files have been imported from our device
+    :return:
+    """
     global loading
     global socketIO
+    global results
+    global partition_toread
+    global list_to_submit
 
     time.sleep(2)
 
     # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
     # files have returned messages from the server. If all these are true then we are finished ingesting files and
     # our submit and receive threads are shut down. Once lists have been emitted they are reset.
-    if partition_toread == 0 and len(list_to_submit) == 0:
+    if partition_toread == 0 and len(list_to_submit) == 0 and not results:
+        results = True
         kiosk('\n--- All files have been successfully ingested')
         if loading:
             socketIO.emit('device_event', 'done_loading')
@@ -109,11 +130,6 @@ def check_done():
         time.sleep(0.1)
         if len(active_devices) != 0:
             socketIO.emit('scroll', 'results')
-
-
-def get_threads():
-    for t in threading.enumerate():
-        kiosk("  " + t.name)
 
 
 # ============== Backend Functions ==============
@@ -273,8 +289,8 @@ def clear_files(device_id):
         time.sleep(0.1)
         kiosk("\r\n")
         socketIO.emit('scroll', 'main')
-
-        refresh()
+        time.sleep(0.1)
+        socketIO.emit('snapshot_restore')
 
 
 # ============== AL Server Interaction Threads ==============
