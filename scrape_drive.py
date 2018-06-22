@@ -43,10 +43,6 @@ list_to_receive = []
 pass_files = []
 # List holds all potentially malicious files as determined by AL output
 mal_files = []
-# Number of files that have been submitted and are awaiting a response from AL
-num_waiting = 0
-# Whether or not our application has finished scanning all imported files
-finished = True
 
 # ---------- Kiosk communication
 # Creates socket between web app and this module
@@ -68,6 +64,8 @@ def kiosk(msg):
     :param msg: message to be sent
     :return:
     """
+    global socketIO
+
     print msg
     socketIO.emit('to_kiosk', msg)
 
@@ -75,9 +73,42 @@ def kiosk(msg):
 def refresh():
     global socketIO
     global terminal
+    global list_to_submit
+    global list_to_receive
+    global mal_files
+    global pass_files
 
     socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
     terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
+    list_to_submit = []
+    list_to_receive = []
+    mal_files = []
+    pass_files = []
+
+
+def check_done():
+    global loading
+    global socketIO
+
+    time.sleep(2)
+
+    # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
+    # files have returned messages from the server. If all these are true then we are finished ingesting files and
+    # our submit and receive threads are shut down. Once lists have been emitted they are reset.
+    if partition_toread == 0 and len(list_to_submit) == 0:
+        kiosk('\n--- All files have been successfully ingested')
+        if loading:
+            socketIO.emit('device_event', 'done_loading')
+            loading = False
+        time.sleep(0.1)
+        kiosk("\r\n")
+        time.sleep(0.1)
+        socketIO.emit('pass_files', pass_files)
+        time.sleep(0.1)
+        socketIO.emit('mal_files', mal_files)
+        time.sleep(0.1)
+        if len(active_devices) != 0:
+            socketIO.emit('scroll', 'results')
 
 
 def get_threads():
@@ -89,7 +120,7 @@ def get_threads():
 
 def block_event(action, device):
     """
-    Called whenever our observer detects that a block device has been added or removed
+    Called whenever our observer detects that a block device has been added or removed.
     :param action: Was the device added or removed?
     :param device: What device?
     :return:
@@ -98,7 +129,6 @@ def block_event(action, device):
     global pass_files
     global mal_files
     global partition_toread
-    global finished
     global active_devices
     global socketIO
 
@@ -114,17 +144,10 @@ def block_event(action, device):
                 refresh()
                 time.sleep(0.1)
                 socketIO.emit('device_event', 'connected')
-                kiosk('clear')
+                time.sleep(0.1)
+                socketIO.emit('clear')
                 time.sleep(0.1)
                 kiosk('\n--- New block device detected: ' + device_id)
-
-                time.sleep(0.1)
-                kiosk(" > Starting:")
-                time.sleep(0.1)
-                get_threads()
-
-                mal_files = []
-                pass_files = []
 
                 # Makes new folder to hold partitions from this disk
                 path_new = os.path.normpath(ingest_dir + device_id)
@@ -229,7 +252,6 @@ def clear_files(device_id):
     global active_devices
     global list_to_submit
     global mal_files
-    global finished
     global partition_toread
     global loading
     global socketIO
@@ -243,10 +265,7 @@ def clear_files(device_id):
 
     # If all devices have been removed, resets list and clears the imported files directory
     if len(active_devices) == 0:
-        list_to_submit = []
-        mal_files = []
         os.system('rm -rf ' + ingest_dir + '/*')
-        finished = True
         loading = False
         kiosk('Temporary malicious files have been cleared')
         kiosk('\n--- All devices successfully removed')
@@ -255,10 +274,7 @@ def clear_files(device_id):
         kiosk("\r\n")
         socketIO.emit('scroll', 'main')
 
-        time.sleep(0.1)
-        kiosk(" > Ending:")
-        time.sleep(0.1)
-        get_threads()
+        refresh()
 
 
 # ============== AL Server Interaction Threads ==============
@@ -272,7 +288,6 @@ def submit_thread(queue):
     """
 
     global list_to_submit
-    global num_waiting
     global loading
     global terminal
     global socketIO
@@ -282,9 +297,6 @@ def submit_thread(queue):
     global list_to_receive
 
     submitting = True
-    kiosk('============================ Start Submitting')
-
-    refresh()
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while len(list_to_submit):
@@ -303,10 +315,6 @@ def submit_thread(queue):
             # submitted
             if os.stat(ingest_path).st_size != 0:
 
-                # Increments up the number of files we have uploaded who have yet to receive a result from the
-                # server
-                num_waiting += 1
-
                 # Ingests file. Removes file from terminal once ingested
                 kiosk('Ingesting: ' + os.path.basename(ingest_path))
                 list_to_receive.append(os.path.basename(ingest_path))
@@ -324,7 +332,6 @@ def submit_thread(queue):
             else:
                 kiosk('Unable to ingest, empty file: ' + os.path.basename(ingest_path))
 
-    kiosk('============================ Done Submitting')
     submitting = False
 
 
@@ -339,10 +346,8 @@ def receive_thread(queue):
 
     global pass_files
     global mal_files
-    global finished
     global partition_toread
     global list_to_submit
-    global num_waiting
     global loading
     global active_devices
     global terminal
@@ -351,33 +356,11 @@ def receive_thread(queue):
     global receiving
 
     receiving = True
-    kiosk('============================ Start Receiving')
 
     while len(list_to_receive):
 
         # Takes all messages from the Assemblyline server and stores in list
         msgs = terminal.ingest.get_message_list(queue)
-
-        # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
-        # files have returned messages from the server. If all these are true then we are finished ingesting files and
-        # our submit and receive threads are shut down. Once lists have been emitted they are reset.
-        if partition_toread == 0 and len(list_to_submit) == 0 and num_waiting == 0 and not finished:
-            kiosk('\n--- All files have been successfully ingested')
-            finished = True
-            if loading:
-                socketIO.emit('device_event', 'done_loading')
-                loading = False
-            time.sleep(0.1)
-            kiosk("\r\n")
-            time.sleep(0.1)
-            socketIO.emit('pass_files', pass_files)
-            time.sleep(0.1)
-            socketIO.emit('mal_files', mal_files)
-            time.sleep(0.1)
-            if len(active_devices) != 0:
-                socketIO.emit('scroll', 'results')
-
-            continue
 
         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
         # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time
@@ -386,30 +369,26 @@ def receive_thread(queue):
             new_file = os.path.basename(msg['metadata']['path'])
             if new_file in list_to_receive:
                 list_to_receive.remove(new_file)
-                kiosk('===== Removed: ' + new_file)
 
-            score = msg['metadata']['al_score']
-            sid = msg['alert']['sid']
-            kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
+                score = msg['metadata']['al_score']
+                sid = msg['alert']['sid']
+                kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
 
-            if score >= 500:
-                kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
-                full_msg = terminal.submission.full(sid)
-                full_path = full_msg['submission']['metadata']['path']
-                full_msg['submission']['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
-                mal_files.append(full_msg)
+                if score >= 500:
+                    kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
+                    full_msg = terminal.submission.full(sid)
+                    full_path = full_msg['submission']['metadata']['path']
+                    full_msg['submission']['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
+                    mal_files.append(full_msg)
 
-            else:
-                full_path = msg['metadata']['path']
-                msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
-                pass_files.append(msg)
-                print
-
-            # Decrements the number of submitted files who are awaiting a response from the server
-            num_waiting -= 1
+                else:
+                    full_path = msg['metadata']['path']
+                    msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
+                    pass_files.append(msg)
+                    print
 
     receiving = False
-    kiosk('============================ Done Receiving')
+    check_done()
 
 
 # ============== Initialization ==============
@@ -420,10 +399,6 @@ if __name__ == '__main__':
 
     # my_log = my_logger.logger
     refresh()
-
-    kiosk(" > Initial:")
-    time.sleep(0.1)
-    get_threads()
 
     os.system('mkdir -p ' + mount_dir)
     os.system('mkdir -p ' + ingest_dir)
@@ -453,7 +428,6 @@ if __name__ == '__main__':
                 if e_type == 'IN_CLOSE_WRITE' and filename != '':
                     dir_to_ingest = path + '/' + filename
                     list_to_submit.append(dir_to_ingest)
-                    finished = False
                     if not submitting:
                         st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
                         st.daemon = True
