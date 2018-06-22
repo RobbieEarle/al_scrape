@@ -4,9 +4,10 @@
 import pyudev
 import os
 from threading import Thread, Lock
+import threading
 from inotify import adapters
 from assemblyline_client import Client
-import my_logger
+# import my_logger
 from socketIO_client import SocketIO
 import time
 
@@ -34,8 +35,10 @@ neuter = False
 mount_lock = Lock()
 
 # ---------- Assemblyline Server communication
+terminal = Client
 # List of files that have been imported from our drive, and are ready to be submitted to AL
 list_to_submit = []
+list_to_receive = []
 # List holds all potentially malicious files as determined by AL output
 pass_files = []
 # List holds all potentially malicious files as determined by AL output
@@ -47,12 +50,17 @@ finished = True
 
 # ---------- Kiosk communication
 # Creates socket between web app and this module
-socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+socketIO = SocketIO
 # True when files are currently being uploaded
 loading = False
 
 
+submitting = False
+receiving = False
+
+
 # ============== Helper Functions ==============
+
 
 def kiosk(msg):
     """
@@ -62,6 +70,19 @@ def kiosk(msg):
     """
     print msg
     socketIO.emit('to_kiosk', msg)
+
+
+def refresh():
+    global socketIO
+    global terminal
+
+    socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+    terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
+
+
+def get_threads():
+    for t in threading.enumerate():
+        kiosk("  " + t.name)
 
 
 # ============== Backend Functions ==============
@@ -90,10 +111,17 @@ def block_event(action, device):
 
             # Announces a new device has been detected
             if device.get('DEVTYPE') == 'disk':
+                refresh()
+                time.sleep(0.1)
                 socketIO.emit('device_event', 'connected')
                 kiosk('clear')
                 time.sleep(0.1)
                 kiosk('\n--- New block device detected: ' + device_id)
+
+                time.sleep(0.1)
+                kiosk(" > Starting:")
+                time.sleep(0.1)
+                get_threads()
 
                 mal_files = []
                 pass_files = []
@@ -204,6 +232,7 @@ def clear_files(device_id):
     global finished
     global partition_toread
     global loading
+    global socketIO
 
     if len(active_devices) != 0:
         active_devices.remove(device_id)
@@ -226,6 +255,11 @@ def clear_files(device_id):
         kiosk("\r\n")
         socketIO.emit('scroll', 'main')
 
+        time.sleep(0.1)
+        kiosk(" > Ending:")
+        time.sleep(0.1)
+        get_threads()
+
 
 # ============== AL Server Interaction Threads ==============
 
@@ -240,43 +274,62 @@ def submit_thread(queue):
     global list_to_submit
     global num_waiting
     global loading
+    global terminal
+    global socketIO
+
+    global submitting
+    global receiving
+    global list_to_receive
+
+    submitting = True
+    kiosk('============================ Start Submitting')
+
+    refresh()
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
-    while True:
+    while len(list_to_submit):
 
-        # Checks to make sure there are still files to be ingested
-        if len(list_to_submit):
+        if not loading:
+            socketIO.emit('device_event', 'loading')
+            loading = True
 
-            if not loading:
-                socketIO.emit('device_event', 'loading')
-                loading = True
+        # Pops a file path from the list of files to be submitted
+        ingest_path = list_to_submit.pop()
 
-            # Pops a file path from the list of files to be submitted
-            ingest_path = list_to_submit.pop()
+        # Checks to make sure the file at this path still exists
+        if os.path.exists(ingest_path):
 
-            # Checks to make sure the file at this path still exists
-            if os.path.exists(ingest_path):
+            # Checks if the file is empty; ingest is unable to examine empty files. Returns a warning if one is
+            # submitted
+            if os.stat(ingest_path).st_size != 0:
 
-                # Checks if the file is empty; ingest is unable to examine empty files. Returns a warning if one is
-                # submitted
-                if os.stat(ingest_path).st_size != 0:
+                # Increments up the number of files we have uploaded who have yet to receive a result from the
+                # server
+                num_waiting += 1
 
-                    # Increments up the number of files we have uploaded who have yet to receive a result from the
-                    # server
-                    num_waiting += 1
+                # Ingests file. Removes file from terminal once ingested
+                kiosk('Ingesting: ' + os.path.basename(ingest_path))
+                list_to_receive.append(os.path.basename(ingest_path))
 
-                    # Ingests file. Removes file from terminal once ingested
-                    kiosk('Ingesting: ' + os.path.basename(ingest_path))
-                    terminal.ingest(ingest_path,
-                                    metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                    nq=queue, ingest_type='TERMINAL')
-                    os.system('rm -f \'' + ingest_path + '\'')
+                if not receiving:
+                    rt = Thread(target=receive_thread, args=('ingest_queue',), name="receive_thread")
+                    rt.daemon = True
+                    rt.start()
 
-                else:
-                    kiosk('Unable to ingest, empty file: ' + os.path.basename(ingest_path))
+                terminal.ingest(ingest_path,
+                                metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
+                                nq=queue, ingest_type='TERMINAL')
+                os.system('rm -f \'' + ingest_path + '\'')
+
+            else:
+                kiosk('Unable to ingest, empty file: ' + os.path.basename(ingest_path))
+
+    kiosk('============================ Done Submitting')
+    submitting = False
 
 
 def receive_thread(queue):
+
     """
     Monitors the server for new messages that occur when files have been successfully uploaded. Scans the results to
     see if score is high.
@@ -292,8 +345,15 @@ def receive_thread(queue):
     global num_waiting
     global loading
     global active_devices
+    global terminal
+    global socketIO
 
-    while True:
+    global receiving
+
+    receiving = True
+    kiosk('============================ Start Receiving')
+
+    while len(list_to_receive):
 
         # Takes all messages from the Assemblyline server and stores in list
         msgs = terminal.ingest.get_message_list(queue)
@@ -324,6 +384,10 @@ def receive_thread(queue):
         # a result is output
         for msg in msgs:
             new_file = os.path.basename(msg['metadata']['path'])
+            if new_file in list_to_receive:
+                list_to_receive.remove(new_file)
+                kiosk('===== Removed: ' + new_file)
+
             score = msg['metadata']['al_score']
             sid = msg['alert']['sid']
             kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
@@ -344,12 +408,22 @@ def receive_thread(queue):
             # Decrements the number of submitted files who are awaiting a response from the server
             num_waiting -= 1
 
+    receiving = False
+    kiosk('============================ Done Receiving')
+
 
 # ============== Initialization ==============
 
 if __name__ == '__main__':
 
-    my_log = my_logger.logger
+    global submitting
+
+    # my_log = my_logger.logger
+    refresh()
+
+    kiosk(" > Initial:")
+    time.sleep(0.1)
+    get_threads()
 
     os.system('mkdir -p ' + mount_dir)
     os.system('mkdir -p ' + ingest_dir)
@@ -361,17 +435,7 @@ if __name__ == '__main__':
 
     # Sets up Assemblyline client
     # terminal = Client(al_instance, apikey=('admin', 'S7iqqLC48e^Dk@VQ6kvnyPOFl7shuvsilx8V^QpOuy&s7KYv'), verify=False)
-    terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
-
-    # Sets up server communication threads
-    queue_name = 'ingest_queue'
-    st = Thread(target=submit_thread, args=(queue_name,), name="submit_thread")
-    st.daemon = True
-    rt = Thread(target=receive_thread, args=(queue_name,), name="receive_thread")
-    rt.daemon = True
-
-    st.start()
-    rt.start()
+    # terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
 
     # Sets up inotify to watch imported_files directory
     i = adapters.InotifyTree(ingest_dir)
@@ -390,3 +454,7 @@ if __name__ == '__main__':
                     dir_to_ingest = path + '/' + filename
                     list_to_submit.append(dir_to_ingest)
                     finished = False
+                    if not submitting:
+                        st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
+                        st.daemon = True
+                        st.start()
