@@ -161,8 +161,6 @@ def block_event(action, device):
                 time.sleep(0.1)
                 socketIO.emit('device_event', 'connected')
                 time.sleep(0.1)
-                socketIO.emit('clear')
-                time.sleep(0.1)
                 kiosk('\n--- New block device detected: ' + device_id)
 
                 # Makes new folder to hold partitions from this disk
@@ -285,12 +283,11 @@ def clear_files(device_id):
         loading = False
         kiosk('Temporary malicious files have been cleared')
         kiosk('\n--- All devices successfully removed')
-        socketIO.emit('device_event', 'disconnected')
         time.sleep(0.1)
-        kiosk("\r\n")
         socketIO.emit('scroll', 'main')
         time.sleep(0.1)
-        socketIO.emit('snapshot_restore')
+        socketIO.emit('device_event', 'disconnected')
+        kiosk("\r\n")
 
 
 # ============== AL Server Interaction Threads ==============
@@ -385,6 +382,7 @@ def receive_thread(queue):
             new_file = os.path.basename(msg['metadata']['path'])
             if new_file in list_to_receive:
                 list_to_receive.remove(new_file)
+                socketIO.emit("ingest_status", "receive_file")
 
                 score = msg['metadata']['al_score']
                 sid = msg['alert']['sid']
@@ -412,6 +410,7 @@ def receive_thread(queue):
 if __name__ == '__main__':
 
     global submitting
+    global socketIO
 
     # my_log = my_logger.logger
     refresh()
@@ -443,6 +442,7 @@ if __name__ == '__main__':
                 # our list_to_submit
                 if e_type == 'IN_CLOSE_WRITE' and filename != '':
                     dir_to_ingest = path + '/' + filename
+                    socketIO.emit("ingest_status", "submit_file")
                     list_to_submit.append(dir_to_ingest)
                     if not submitting:
                         st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
