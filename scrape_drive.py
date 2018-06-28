@@ -128,8 +128,6 @@ def check_done():
         time.sleep(0.1)
         socketIO.emit('mal_files', mal_files)
         time.sleep(0.1)
-        if len(active_devices) != 0:
-            socketIO.emit('scroll', 'results')
 
 
 # ============== Backend Functions ==============
@@ -284,8 +282,6 @@ def clear_files(device_id):
         kiosk('Temporary malicious files have been cleared')
         kiosk('\n--- All devices successfully removed')
         time.sleep(0.1)
-        socketIO.emit('scroll', 'main')
-        time.sleep(0.1)
         socketIO.emit('device_event', 'disconnected')
         kiosk("\r\n")
 
@@ -386,7 +382,8 @@ def receive_thread(queue):
 
                 score = msg['metadata']['al_score']
                 sid = msg['alert']['sid']
-                kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
+                # kiosk('   Server Received: ' + new_file + "    " + 'sid: %s    score: %d' % (sid, score),)
+                kiosk('   Server Received: ' + new_file)
 
                 if score >= 500:
                     kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
