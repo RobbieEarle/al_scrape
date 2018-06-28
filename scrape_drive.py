@@ -4,15 +4,16 @@
 import pyudev
 import os
 from threading import Thread, Lock
-import threading
-from inotify import adapters
 from assemblyline_client import Client
+from inotify import adapters
 # import my_logger
 from socketIO_client import SocketIO
 import time
 
 
 # ============== Default Property Values ==============
+
+begin_scrape = False
 
 # ---------- Customizable paths
 # URL of Assemblyline instance
@@ -59,7 +60,6 @@ loading = False
 
 
 # ============== Helper Functions ==============
-
 
 def kiosk(msg):
     """
@@ -402,12 +402,19 @@ def receive_thread(queue):
     check_done()
 
 
+def ack(arg1, arg2):
+    global begin_scrape
+    if arg1 != '' and arg2 != '':
+        begin_scrape = True
+
+
 # ============== Initialization ==============
 
 if __name__ == '__main__':
 
     global submitting
     global socketIO
+    global begin_scrape
 
     # my_log = my_logger.logger
     refresh()
@@ -426,6 +433,11 @@ if __name__ == '__main__':
 
     # Sets up inotify to watch imported_files directory
     i = adapters.InotifyTree(ingest_dir)
+
+    while not begin_scrape:
+        socketIO.emit("connect_request", ack)
+        socketIO.wait_for_callbacks(seconds=1)
+        time.sleep(1)
 
     # Infinite loop watches for new additions to imported_files directory
     for event in i.event_gen():
