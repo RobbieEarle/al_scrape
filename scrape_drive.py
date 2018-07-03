@@ -422,6 +422,11 @@ if __name__ == '__main__':
     os.system('mkdir -p ' + mount_dir)
     os.system('mkdir -p ' + ingest_dir)
 
+    while not begin_scrape:
+        socketIO.emit("connect_request", ack)
+        socketIO.wait_for_callbacks(seconds=1)
+        time.sleep(1)
+
     # Sets up monitor and observer thread to run in background to detect addition or removal of devices
     monitor = pyudev.Monitor.from_netlink(context)
     observer = pyudev.MonitorObserver(monitor, block_event)
@@ -433,11 +438,6 @@ if __name__ == '__main__':
 
     # Sets up inotify to watch imported_files directory
     i = adapters.InotifyTree(ingest_dir)
-
-    while not begin_scrape:
-        socketIO.emit("connect_request", ack)
-        socketIO.wait_for_callbacks(seconds=1)
-        time.sleep(1)
 
     # Infinite loop watches for new additions to imported_files directory
     for event in i.event_gen():
