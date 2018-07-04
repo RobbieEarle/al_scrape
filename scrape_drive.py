@@ -22,6 +22,8 @@ al_instance = 'https://134.190.171.253/'
 mount_dir = '/home/user/al_ui/temp_device'
 # Directory where all imported files (copied from block device) are temporarily stored before being sent to AL
 ingest_dir = '/home/user/al_ui/imported_files'
+# The name given to this terminal
+terminal_id = 'DEV_TERMINAL'
 
 # ---------- Block device importing
 # -- Context object used to configure pyudev to detect the devices on this computer
@@ -109,6 +111,7 @@ def check_done():
     global results
     global partition_toread
     global list_to_submit
+    global terminal_id
 
     time.sleep(2)
 
@@ -126,7 +129,7 @@ def check_done():
         time.sleep(0.1)
         socketIO.emit('pass_files', pass_files)
         time.sleep(0.1)
-        socketIO.emit('mal_files', mal_files)
+        socketIO.emit('mal_files', mal_files, terminal_id)
         time.sleep(0.1)
 
 
@@ -304,6 +307,7 @@ def submit_thread(queue):
     global submitting
     global receiving
     global list_to_receive
+    global terminal_id
 
     submitting = True
 
@@ -335,7 +339,7 @@ def submit_thread(queue):
 
                 terminal.ingest(ingest_path,
                                 metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                nq=queue, ingest_type='TERMINAL')
+                                nq=queue, ingest_type=terminal_id)
                 os.system('rm -f \'' + ingest_path + '\'')
 
             else:
@@ -412,9 +416,9 @@ def ack(arg1, arg2):
 
 if __name__ == '__main__':
 
-    global submitting
-    global socketIO
-    global begin_scrape
+    # global submitting
+    # global socketIO
+    # global begin_scrape
 
     # my_log = my_logger.logger
     refresh()
