@@ -75,7 +75,7 @@ def kiosk(msg):
     socketIO.emit('to_kiosk', msg)
 
 
-def refresh():
+def refresh_socket():
     """
     Refreshes socketio, our assemblyline client, and all arrays used in monitoring progress / results. This
     is called whenever a new device is plugged in, as the VM on which this script is running has likely
@@ -85,6 +85,11 @@ def refresh():
     :return:
     """
     global socketIO
+
+    socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+
+
+def init_al():
     global terminal
     global list_to_submit
     global list_to_receive
@@ -92,8 +97,7 @@ def refresh():
     global pass_files
     global results
 
-    socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
-    terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
+    terminal = Client(al_instance, apikey=('admin', 'CbHIT^4L*SqLUOoNwLE5g67TaRL9IZEnmE*omXHIC8AI(G3q'), verify=False)
     list_to_submit = []
     list_to_receive = []
     mal_files = []
@@ -158,7 +162,8 @@ def block_event(action, device):
 
             # Announces a new device has been detected
             if device.get('DEVTYPE') == 'disk':
-                refresh()
+                refresh_socket()
+                init_al()
                 time.sleep(0.1)
                 socketIO.emit('device_event', 'connected')
                 time.sleep(0.1)
@@ -289,6 +294,20 @@ def clear_files(device_id):
         kiosk("\r\n")
 
 
+def ack(f_name, l_name, default_settings):
+    """
+    Called continuously checking whether valid credentials have been entered when script first starts running. Once
+    credentials have been entered, begin_scrape is set to true, and the device observer, submit, and receive threads
+    are allowed to run (ie. the service starts as normal)
+    :param f_name: Client first name
+    :param l_name: Client last name
+    :return:
+    """
+    global begin_scrape
+    if f_name != '' and l_name != '':
+        begin_scrape = True
+
+
 # ============== AL Server Interaction Threads ==============
 
 def submit_thread(queue):
@@ -406,12 +425,6 @@ def receive_thread(queue):
     check_done()
 
 
-def ack(arg1, arg2):
-    global begin_scrape
-    if arg1 != '' and arg2 != '':
-        begin_scrape = True
-
-
 # ============== Initialization ==============
 
 if __name__ == '__main__':
@@ -421,7 +434,7 @@ if __name__ == '__main__':
     # global begin_scrape
 
     # my_log = my_logger.logger
-    refresh()
+    refresh_socket()
 
     os.system('mkdir -p ' + mount_dir)
     os.system('mkdir -p ' + ingest_dir)
@@ -430,6 +443,8 @@ if __name__ == '__main__':
         socketIO.emit("connect_request", ack)
         socketIO.wait_for_callbacks(seconds=1)
         time.sleep(1)
+
+    init_al()
 
     # Sets up monitor and observer thread to run in background to detect addition or removal of devices
     monitor = pyudev.Monitor.from_netlink(context)
