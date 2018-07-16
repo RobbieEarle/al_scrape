@@ -4,6 +4,7 @@
 import pyudev
 import os
 from threading import Thread, Lock
+import threading
 from assemblyline_client import Client
 from inotify import adapters
 # import my_logger
@@ -26,7 +27,7 @@ ingest_dir = '/home/user/al_ui/imported_files'
 terminal_id = 'DEV_TERMINAL'
 
 # ---------- Block device importing
-# -- Context object used to configure pyudev to detect the devices on this computer
+# Context object used to configure pyudev to detect the devices on this computer
 context = pyudev.Context()
 # List of all active devices (devices that are currently plugged in)
 active_devices = []
@@ -77,32 +78,16 @@ def kiosk(msg):
 
 def refresh_socket():
     """
-    Refreshes socketio, our assemblyline client, and all arrays used in monitoring progress / results. This
-    is called whenever a new device is plugged in, as the VM on which this script is running has likely
-    been restored to a previous snapshot after the last device was removed. Thus this method is necessary
-    to ensure scrape_drive doesn't attempt to send information to our AL server or to our webapp via an
-    expired socket, and that
+    Refreshes our socketio connection
     :return:
     """
     global socketIO
 
-    socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
-
-
-def init_al():
-    global terminal
-    global list_to_submit
-    global list_to_receive
-    global mal_files
-    global pass_files
-    global results
-
-    terminal = Client(al_instance, apikey=('admin', 'CbHIT^4L*SqLUOoNwLE5g67TaRL9IZEnmE*omXHIC8AI(G3q'), verify=False)
-    list_to_submit = []
-    list_to_receive = []
-    mal_files = []
-    pass_files = []
-    results = False
+    try:
+        socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+    except:
+        time.sleep(2)
+        refresh_socket()
 
 
 def check_done():
@@ -137,6 +122,91 @@ def check_done():
         time.sleep(0.1)
 
 
+def init_ingester():
+    """
+    Constantly running loop which watches our ingest directory for changes. Any files that are copied into this
+    directory are submitted to AL server
+    :return:
+    """
+
+    monitor = pyudev.Monitor.from_netlink(context)
+    observer = pyudev.MonitorObserver(monitor, block_event)
+    observer.start()
+
+    # Sets up inotify to watch imported_files directory
+    i = adapters.InotifyTree(ingest_dir)
+
+    # Loop watches for new additions to imported_files directory
+    for event in i.event_gen():
+        if event is not None:
+            # Stores the event type, pathname, and filename for this event
+            (_, type_names, path, filename) = event
+            for e_type in type_names:
+                # If our event is that we've finished writing a file to imported_files, passes that file's path into
+                # our list_to_submit
+                if e_type == 'IN_CLOSE_WRITE' and filename != '':
+                    dir_to_ingest = path + '/' + filename
+                    socketIO.emit("ingest_status", "submit_file")
+                    list_to_submit.append(dir_to_ingest)
+                    if not submitting:
+                        st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
+                        st.daemon = True
+                        st.start()
+
+
+def init_session():
+    global terminal
+    global list_to_submit
+    global list_to_receive
+    global mal_files
+    global pass_files
+    global results
+
+    print "init_session"
+
+    # Connects to our Assemblyline deployment
+    terminal = Client(al_instance, apikey=('admin', 'CbHIT^4L*SqLUOoNwLE5g67TaRL9IZEnmE*omXHIC8AI(G3q'), verify=False)
+
+    # Resets all default values
+    list_to_submit = []
+    list_to_receive = []
+    mal_files = []
+    pass_files = []
+    results = False
+
+
+def app_response(f_name, l_name, default_settings):
+    """
+    Called continuously checking whether valid credentials have been entered when script first starts running. Once
+    credentials have been entered, begin_scrape is set to true, and the device observer, submit, and receive threads
+    are allowed to run (ie. the service starts as normal)
+    :param f_name: Client first name
+    :param l_name: Client last name
+    :return:
+    """
+
+    global begin_scrape
+    if f_name != '' and l_name != '':
+        begin_scrape = True
+        print f_name
+        print l_name
+        print default_settings
+
+
+def session_wait():
+
+    print "session_wait"
+
+    refresh_socket()
+
+    while not begin_scrape:
+        socketIO.emit("connect_request", app_response)
+        socketIO.wait_for_callbacks(seconds=1)
+        time.sleep(1)
+
+    init_session()
+
+
 # ============== Backend Functions ==============
 
 def block_event(action, device):
@@ -159,12 +229,10 @@ def block_event(action, device):
         # If device is block device
         if device.subsystem == 'block':
             device_id = device.device_node
+            print device_id
 
             # Announces a new device has been detected
             if device.get('DEVTYPE') == 'disk':
-                refresh_socket()
-                init_al()
-                time.sleep(0.1)
                 socketIO.emit('device_event', 'connected')
                 time.sleep(0.1)
                 kiosk('\n--- New block device detected: ' + device_id)
@@ -294,20 +362,6 @@ def clear_files(device_id):
         kiosk("\r\n")
 
 
-def ack(f_name, l_name, default_settings):
-    """
-    Called continuously checking whether valid credentials have been entered when script first starts running. Once
-    credentials have been entered, begin_scrape is set to true, and the device observer, submit, and receive threads
-    are allowed to run (ie. the service starts as normal)
-    :param f_name: Client first name
-    :param l_name: Client last name
-    :return:
-    """
-    global begin_scrape
-    if f_name != '' and l_name != '':
-        begin_scrape = True
-
-
 # ============== AL Server Interaction Threads ==============
 
 def submit_thread(queue):
@@ -415,7 +469,7 @@ def receive_thread(queue):
                     full_msg['submission']['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
                     mal_files.append(full_msg)
 
-                else:
+                elif score > 0:
                     full_path = msg['metadata']['path']
                     msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
                     pass_files.append(msg)
@@ -429,50 +483,8 @@ def receive_thread(queue):
 
 if __name__ == '__main__':
 
-    # global submitting
-    # global socketIO
-    # global begin_scrape
-
-    # my_log = my_logger.logger
-    refresh_socket()
-
     os.system('mkdir -p ' + mount_dir)
     os.system('mkdir -p ' + ingest_dir)
 
-    while not begin_scrape:
-        socketIO.emit("connect_request", ack)
-        socketIO.wait_for_callbacks(seconds=1)
-        time.sleep(1)
-
-    init_al()
-
-    # Sets up monitor and observer thread to run in background to detect addition or removal of devices
-    monitor = pyudev.Monitor.from_netlink(context)
-    observer = pyudev.MonitorObserver(monitor, block_event)
-    observer.start()
-
-    # Sets up Assemblyline client
-    # terminal = Client(al_instance, apikey=('admin', 'S7iqqLC48e^Dk@VQ6kvnyPOFl7shuvsilx8V^QpOuy&s7KYv'), verify=False)
-    # terminal = Client(al_instance, auth=('admin', 'changeme'), verify=False)
-
-    # Sets up inotify to watch imported_files directory
-    i = adapters.InotifyTree(ingest_dir)
-
-    # Infinite loop watches for new additions to imported_files directory
-    for event in i.event_gen():
-        if event is not None:
-
-            # Stores the event type, pathname, and filename for this event
-            (_, type_names, path, filename) = event
-            for e_type in type_names:
-
-                # If our event is that we've finished writing a file to imported_files, passes that file's path into
-                # our list_to_submit
-                if e_type == 'IN_CLOSE_WRITE' and filename != '':
-                    dir_to_ingest = path + '/' + filename
-                    socketIO.emit("ingest_status", "submit_file")
-                    list_to_submit.append(dir_to_ingest)
-                    if not submitting:
-                        st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
-                        st.daemon = True
-                        st.start()
+    session_wait()
+    init_ingester()
