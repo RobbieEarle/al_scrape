@@ -69,25 +69,29 @@ def kiosk(msg):
 def new_session(settings):
     global terminal, terminal_id, scrape_stage
 
-    print settings
+    refresh_session()
 
-    try:
-        terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
-        terminal_id = settings["id"]
-    except Exception as e:
-        print traceback.format_exception_only(type(e), e)[0]
+    print "Connecting to Assemblyline Server"
+
+    # try:
+    #     terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
+    #     terminal_id = settings["id"]
+    # except Exception as e:
+    #     print traceback.format_exception_only(type(e), e)[0]
 
     if terminal is not None:
 
-        scrape_stage = 0
+        print "Terminal Success"
 
-        # 2. Initializes submit thread. Takes files added to list_to_submit array and submits them to AL server
-        st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
-        st.start()
-
-        # 3. Initializes receive thread. This thread listens for callbacks from the AL server
-        rt = Thread(target=receive_thread, args=('ingest_queue',), name="receive_thread")
-        rt.start()
+        # scrape_stage = 0
+        #
+        # # 2. Initializes submit thread. Takes files added to list_to_submit array and submits them to AL server
+        # st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
+        # st.start()
+        #
+        # # 3. Initializes receive thread. This thread listens for callbacks from the AL server
+        # rt = Thread(target=receive_thread, args=('ingest_queue',), name="receive_thread")
+        # rt.start()
 
     else:
         print "Terminal Error - Output to Kiosk"
@@ -117,11 +121,8 @@ def initialize():
     # 4. Begins infinite loop that watches for files being added to the ingest_dir folder. Files are copied over when
     #    detected by the observer; this loop detects the new file, and adds its path to the list_to_submit array to be
     #    picked up by the submit thread
-    # dt = Thread(target=detect_thread, name="detect_thread")
-    # dt.start()
-
-    socketIO.emit("be_retrieve_settings", new_session)
-    socketIO.wait_for_callbacks(seconds=1)
+    dt = Thread(target=detect_thread, name="detect_thread")
+    dt.start()
 
     # else:
     #     print "Init Fail"
@@ -360,8 +361,6 @@ def clear_files(device_id):
     if len(active_devices) == 0:
         socketIO.emit('be_device_event', 'disconnected')
         os.system('rm -rf ' + ingest_dir + '/*')
-        refresh_session()
-        # new_session()
         print "Device Removed"
 
 
