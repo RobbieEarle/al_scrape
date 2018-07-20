@@ -62,8 +62,6 @@ def initialize():
     """
     global terminal, list_to_submit
 
-    print "initialize"
-
     # Refreshes application's websocket connection to front end application
     refresh_socket()
 
@@ -87,7 +85,6 @@ def initialize():
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
                         dir_to_ingest = path + '/' + filename
                         list_to_submit.append(dir_to_ingest)
-                        print "        Push: " + dir_to_ingest
 
 
 def refresh_socket():
@@ -97,11 +94,7 @@ def refresh_socket():
     """
     global socketIO
 
-    print "refresh_socket"
-
     socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
-
-    print "refresh_socket done"
 
 
 def refresh_session():
@@ -114,8 +107,6 @@ def refresh_session():
     global list_to_receive
     global mal_files
     global pass_files
-
-    print "refresh_session"
 
     list_to_submit = []
     list_to_receive = []
@@ -150,9 +141,6 @@ def new_session(settings):
     scrape_stage = 0
     refresh_session()
 
-    print "Connecting to Assemblyline Server"
-    print "Active threads: " + str(threading.enumerate())
-
     # Tries to connect to Assemblyline server; if not able to, prints error
     try:
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
@@ -162,8 +150,6 @@ def new_session(settings):
 
     # If server connection is successful
     if terminal is not None:
-
-        print "Terminal Success"
 
         # Outputs successful connection message to front end
         socketIO.emit('be_device_event', 'al_server_success')
@@ -180,8 +166,6 @@ def new_session(settings):
         # If we successfully receive the start message from the front end
         if scrape_stage == 2:
 
-            print "... SCANNING ..."
-
             # Scrape Stage 3 - Scanning
             scrape_stage = 3
 
@@ -197,8 +181,6 @@ def new_session(settings):
 def start_scan(*args):
     global scrape_stage
 
-    print "start_scan"
-
     # Scrape Stage 2 - Credentials received; starting scan
     scrape_stage = 2
 
@@ -211,7 +193,6 @@ def kiosk(msg):
     """
     global socketIO
 
-    print msg
     socketIO.emit('be_to_kiosk', msg)
 
 
@@ -228,7 +209,6 @@ def check_done():
     # files have returned messages from the server. If all these are true then we are finished ingesting files and
     # our submit and receive threads are shut down. Once lists have been emitted they are reset.
     if partition_toread == 0 and len(list_to_submit) == 0 and len(list_to_receive) == 0 and scrape_stage == 3:
-        print "Threads: " + str(threading.enumerate())
 
         # Scrape Stage 4 - Scan finished
         scrape_stage = 4
@@ -238,7 +218,6 @@ def check_done():
         time.sleep(0.1)
         socketIO.emit('be_mal_files', mal_files, terminal_id)
         time.sleep(0.1)
-        print "Threads: " + str(threading.enumerate())
 
 
 # ============== MonitorObserver Functions ==============
@@ -381,7 +360,6 @@ def clear_files(device_id):
         scrape_stage = 0
         socketIO.emit('be_device_event', 'disconnected')
         os.system('rm -rf ' + ingest_dir + '/*')
-        print "Device Removed"
 
 
 # ============== Submit / Receive Assemblyline Server Functions ==============
@@ -410,7 +388,6 @@ def submit_thread(queue):
 
             # Pops a file path from the list of files to be submitted
             ingest_path = list_to_submit.pop()
-            print "        Pop: " + ingest_path
 
             # Checks to make sure the file at this path still exists
             if os.path.exists(ingest_path):
@@ -491,7 +468,6 @@ def receive_thread(queue):
                         full_path = msg['metadata']['path']
                         msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
                         pass_files.append(msg)
-                        print
 
         else:
             check_done()
