@@ -5,13 +5,10 @@
 import pyudev
 import os
 from threading import Thread, Lock
-import threading
 from assemblyline_client import Client
 from inotify import adapters
-# import my_logger
 from socketIO_client import SocketIO
 import time
-import traceback
 
 
 # ============== Default Property Values ==============
@@ -29,8 +26,6 @@ ingest_dir = '/home/user/al_ui/imported_files'
 active_devices = []
 # Number of partitions who have been recognized but who have not yet had their files imported
 partition_toread = 0
-# True if user wants to neuter files when importing. False by default
-neuter = False
 # Lock object for allowing only one partition to mount at a time
 mount_lock = Lock()
 
@@ -65,6 +60,8 @@ def initialize():
     # Refreshes application's websocket connection to front end application
     refresh_socket()
 
+    # Tell front end that application is ready to receive device
+
     # Initializes pyudev observer thread that is going to monitor for device events (devices added / removed)
     context = pyudev.Context()
     monitor = pyudev.Monitor.from_netlink(context)
@@ -94,7 +91,15 @@ def refresh_socket():
     """
     global socketIO
 
-    socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+    print "Refreshing Socket"
+    try:
+        socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+    except Exception:
+        print "Error connecting to front end, retrying..."
+        time.sleep(3)
+        refresh_socket()
+
+    print "Refreshing Socket Done"
 
 
 def refresh_session():
@@ -146,7 +151,7 @@ def new_session(settings):
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
         terminal_id = settings["id"]
     except Exception as e:
-        print traceback.format_exception_only(type(e), e)[0]
+        socketIO.emit('be_device_event', 'al_server_failure')
 
     # If server connection is successful
     if terminal is not None:
@@ -193,6 +198,7 @@ def kiosk(msg):
     """
     global socketIO
 
+    print msg
     socketIO.emit('be_to_kiosk', msg)
 
 
@@ -212,11 +218,11 @@ def check_done():
 
         # Scrape Stage 4 - Scan finished
         scrape_stage = 4
-        socketIO.emit('be_device_event', 'done_loading')
-        time.sleep(0.1)
         socketIO.emit('be_pass_files', pass_files)
         time.sleep(0.1)
         socketIO.emit('be_mal_files', mal_files, terminal_id)
+        time.sleep(0.1)
+        socketIO.emit('be_device_event', 'done_loading')
         time.sleep(0.1)
 
 
@@ -304,13 +310,8 @@ def copy_files(device_id):
                 # Makes new directory for this partition
                 os.system('mkdir -p ' + ingest_dir + device_id)
 
-                # Checks if the user wants to neuter files or not
-                if neuter:
-                    # Sends files to be converted to CART format
-                    neuter_files(mount_dir, device_id)
-                else:
-                    # If not copies files directly into directory to be ingested
-                    os.system('cp -a ' + mount_dir + ' ' + ingest_dir + device_id)
+                # Copies files directly into directory to be ingested
+                os.system('cp -a ' + mount_dir + ' ' + ingest_dir + device_id)
 
                 # Removes Image
                 os.system('sudo /home/user/al_ui/bash_scripts/remove_dev_img.sh')
@@ -321,22 +322,6 @@ def copy_files(device_id):
             # This partition is now finished; subtracts 1 from the partitions that need to be read and returns
             partition_toread -= 1
             return
-
-
-def neuter_files(raw_dir, device_id):
-    """
-    Called when a block device has been successfully loaded and mounted. Scans through all files on the device and
-    creates a copy in CART format within the imported_files folder, where they will be imported by Assemblyline
-    :param raw_dir: Directory where usb is mounted
-    :param device_id: The reference for this usb partition
-    :return:
-    """
-
-    # Walks through files in given directory one by one, converting to CART and sending to imported_files
-    for root, dirs, files in os.walk(raw_dir):
-        for raw_file in files:
-            output_file = ingest_dir + device_id + '/' + raw_file + '.cart'
-            os.system('cart ' + '\'' + root + '/' + raw_file + '\'' + ' --outfile \'' + output_file + '\'')
 
 
 def clear_files(device_id):
