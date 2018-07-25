@@ -11,7 +11,7 @@ from socketIO_client import SocketIO
 import time
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(filename="/var/log/kiosk.log", level=logging.DEBUG)
 
 # ============== Default Property Values ==============
 
