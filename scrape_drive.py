@@ -96,6 +96,12 @@ def refresh_socket():
     print "Refreshing Socket"
     try:
         socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+    except Exception:
+        print "Error connecting to front end, retrying..."
+        time.sleep(3)
+        refresh_socket()
+
+    try:
         socketIO.emit('test')
     except Exception:
         print "Error connecting to front end, retrying..."
