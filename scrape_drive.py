@@ -10,6 +10,8 @@ from inotify import adapters
 from socketIO_client import SocketIO
 import time
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 # ============== Default Property Values ==============
 
@@ -17,9 +19,9 @@ import time
 # The name given to this terminal
 terminal_id = ''
 # Directory where we will mount our block device
-mount_dir = '/home/user/al_ui/temp_device'
+mount_dir = '/tmp/temp_device'
 # Directory where all imported files (copied from block device) are temporarily stored before being sent to AL
-ingest_dir = '/home/user/al_ui/imported_files'
+ingest_dir = '/tmp/imported_files'
 
 # ---------- Block device importing
 # List of all active devices (devices that are currently plugged in)
@@ -94,6 +96,7 @@ def refresh_socket():
     print "Refreshing Socket"
     try:
         socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+        socketIO.emit('test')
     except Exception:
         print "Error connecting to front end, retrying..."
         time.sleep(3)
@@ -147,6 +150,7 @@ def new_session(settings):
     refresh_session()
 
     # Tries to connect to Assemblyline server; if not able to, prints error
+    terminal = None
     try:
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
         terminal_id = settings["id"]
@@ -250,6 +254,8 @@ def block_event(action, device):
 
             # Announces a new device has been detected to front end
             socketIO.emit('be_device_event', 'connected')
+
+            # Creates a new session
             Thread(target=session_login, name='session_login').start()
 
             # Makes new folder to hold partitions from this disk
@@ -275,9 +281,8 @@ def block_event(action, device):
             Thread(target=copy_files, args=(device_id,), name=device_id).start()
 
     # Called when an active device is removed. Clears the imported cart files
-    elif action == 'remove':
-        if device.get('DEVTYPE') == 'partition':
-            clear_files(device_id)
+    elif action == 'remove' and device.get('DEVTYPE') == 'partition':
+        clear_files(device_id)
 
 
 def copy_files(device_id):
