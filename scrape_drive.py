@@ -97,14 +97,7 @@ def refresh_socket():
     try:
         socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
     except Exception:
-        print "Error connecting to front end, retrying..."
-        time.sleep(3)
-        refresh_socket()
-
-    try:
-        socketIO.emit('test')
-    except Exception:
-        print "Error connecting to front end, retrying..."
+        print "Error 1: connecting to front end, retrying..."
         time.sleep(3)
         refresh_socket()
 
@@ -315,7 +308,7 @@ def copy_files(device_id):
             if device_id in active_devices:
 
                 # Mounts device
-                os.system('sudo /home/user/al_ui/bash_scripts/mount_block.sh ' + device_id +
+                os.system('sudo ~/al_scrape/bash_scripts/mount_block.sh ' + device_id +
                           ' ' + mount_dir)
 
                 # Makes new directory for this partition
@@ -325,10 +318,10 @@ def copy_files(device_id):
                 os.system('cp -a ' + mount_dir + ' ' + ingest_dir + device_id)
 
                 # Removes Image
-                os.system('sudo /home/user/al_ui/bash_scripts/remove_dev_img.sh')
+                os.system('sudo ~/al_scrape/bash_scripts/remove_dev_img.sh')
 
                 # Unmounts device
-                os.system('sudo /home/user/al_ui/bash_scripts/unmount_block.sh ' + mount_dir)
+                os.system('sudo ~/al_scrape/bash_scripts/unmount_block.sh ' + mount_dir)
 
             # This partition is now finished; subtracts 1 from the partitions that need to be read and returns
             partition_toread -= 1
