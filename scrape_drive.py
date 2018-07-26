@@ -187,6 +187,8 @@ def new_session(settings):
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
         terminal_id = settings["id"]
     except Exception as e:
+        print str(e)
+        print settings["address"], settings["username"], settings["api_key"]
         socketIO.emit('be_device_event', 'al_server_failure')
 
     # If server connection is successful
