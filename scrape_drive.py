@@ -109,9 +109,15 @@ def initialize():
         # Loop watches for new additions to imported_files directory
         for event in i.event_gen():
             if event is not None:
+
+                print " -- EVENT: " + str(event)
+
                 # Stores the event type, pathname, and filename for this event
                 (_, type_names, path, filename) = event
                 for e_type in type_names:
+
+                    print " -- EVENT TYPE: " + str(e_type)
+
                     # If our event is that we've finished writing a file to imported_files, passes that file's path into
                     # our list_to_submit
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
@@ -176,6 +182,8 @@ def new_session(settings):
     :return:
     """
     global terminal, terminal_id, scrape_stage
+
+    print " --- new_session"
 
     # Scrape Stage 0 - Connecting to Assemblyline server
     scrape_stage = 0
@@ -286,6 +294,8 @@ def block_event(action, device):
         # The DEVTYPE "disk" occurs once when a new device is detected
         if device.get('DEVTYPE') == 'disk':
 
+            print " --- New device detected"
+
             # Announces a new device has been detected to front end
             socketIO.emit('be_device_event', 'connected')
 
@@ -303,6 +313,8 @@ def block_event(action, device):
         # The DEVTYPE "partition" occurs once for each partition on a given device. If the device is not
         # partitioned, this event will still fire once for the main device drive
         elif device.get('DEVTYPE') == 'partition':
+
+            print " - Partition loaded"
 
             # Increments the number of partitions that are waiting to be read
             partition_toread += 1
@@ -333,6 +345,8 @@ def copy_files(device_id):
     global active_devices
     global mount_dir
     global ingest_dir
+
+    print " --- copy_files"
 
     while len(active_devices) != 0:
 
@@ -403,6 +417,8 @@ def submit_thread(queue):
     global list_to_receive
     global terminal_id
 
+    print " - START SUBMIT"
+
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while 1 < scrape_stage < 4:
 
@@ -444,6 +460,8 @@ def submit_thread(queue):
 
         else:
             time.sleep(1)
+
+    print " - END SUBMIT"
 
 
 def receive_thread(queue):
