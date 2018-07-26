@@ -90,7 +90,7 @@ def initialize():
     watch for new devices; starts infinite loop watching for new files to submit
     :return:
     """
-    global terminal, list_to_submit
+    global list_to_submit
 
     # Refreshes application's websocket connection to front end application
     refresh_socket()
@@ -213,11 +213,11 @@ def new_session(settings):
             scrape_stage = 3
 
             # Initializes submit thread. Takes files added to list_to_submit array and submits them to AL server
-            st = Thread(target=submit_thread, args=('ingest_queue',), name="submit_thread")
+            st = Thread(target=submit_thread, args=(terminal_id,), name="submit_thread")
             st.start()
 
             # Initializes receive thread. This thread listens for callbacks from the AL server
-            rt = Thread(target=receive_thread, args=('ingest_queue',), name="receive_thread")
+            rt = Thread(target=receive_thread, args=(terminal_id,), name="receive_thread")
             rt.start()
 
 
@@ -425,6 +425,8 @@ def submit_thread(queue):
                     # Appends the file to the array of files in regards to which we are waiting for a response from the
                     # Assemblyline server
                     list_to_receive.append(os.path.basename(ingest_path))
+
+                    print "-------------- Attempting to ingest"
 
                     # Ingests the file (submits to Assemblyline server via ingest API)
                     terminal.ingest(ingest_path,
