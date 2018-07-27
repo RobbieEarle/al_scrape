@@ -8,6 +8,7 @@ import sys
 from threading import Thread, Lock
 from assemblyline_client import Client
 from inotify import adapters
+import inotify
 from socketIO_client import SocketIO
 import time
 
@@ -100,29 +101,38 @@ def initialize():
     # Initializes pyudev observer thread that is going to monitor for device events (devices added / removed)
     context = pyudev.Context()
     monitor = pyudev.Monitor.from_netlink(context)
-    observer = pyudev.MonitorObserver(monitor, block_event)
-    observer.start()
+    device_observer = pyudev.MonitorObserver(monitor, block_event)
+    device_observer.start()
 
-    # Initializes infinite loop that will continue to run on the main thread
-    i = adapters.InotifyTree(ingest_dir)
+    folder_observer = inotify.adapters.Inotify()
+    folder_observer.add_watch(ingest_dir)
     while True:
-        # Loop watches for new additions to imported_files directory
-        for event in i.event_gen():
+        for event in folder_observer.event_gen():
             if event is not None:
+                # (header, type_names, watch_path, filename) = event
+                print " ----------- Event: " + str(event)
 
-                print " -- EVENT: " + str(event)
 
-                # Stores the event type, pathname, and filename for this event
-                (_, type_names, path, filename) = event
-                for e_type in type_names:
-
-                    print " -- EVENT TYPE: " + str(e_type)
-
-                    # If our event is that we've finished writing a file to imported_files, passes that file's path into
-                    # our list_to_submit
-                    if e_type == 'IN_CLOSE_WRITE' and filename != '':
-                        dir_to_ingest = path + '/' + filename
-                        list_to_submit.append(dir_to_ingest)
+    # # Initializes infinite loop that will continue to run on the main thread
+    # i = adapters.InotifyTree(ingest_dir)
+    # while True:
+    #     # Loop watches for new additions to imported_files directory
+    #     for event in i.event_gen():
+    #         if event is not None:
+    #
+    #             print " -- EVENT: " + str(event)
+    #
+    #             # Stores the event type, pathname, and filename for this event
+    #             (_, type_names, path, filename) = event
+    #             for e_type in type_names:
+    #
+    #                 print " -- EVENT TYPE: " + str(e_type)
+    #
+    #                 # If our event is that we've finished writing a file to imported_files, passes that file's path into
+    #                 # our list_to_submit
+    #                 if e_type == 'IN_CLOSE_WRITE' and filename != '':
+    #                     dir_to_ingest = path + '/' + filename
+    #                     list_to_submit.append(dir_to_ingest)
 
 
 def refresh_socket():
@@ -357,7 +367,7 @@ def copy_files(device_id):
             if device_id in active_devices:
 
                 # Mounts device
-                os.system('sudo ~/al_scrape/bash_scripts/mount_block.sh ' + device_id +
+                os.system('sudo ~/al_ui/bash_scripts/mount_block.sh ' + device_id +
                           ' ' + mount_dir)
 
                 # Makes new directory for this partition
@@ -367,10 +377,10 @@ def copy_files(device_id):
                 os.system('cp -a ' + mount_dir + ' ' + ingest_dir + device_id)
 
                 # Removes Image
-                os.system('sudo ~/al_scrape/bash_scripts/remove_dev_img.sh')
+                os.system('sudo ~/al_ui/bash_scripts/remove_dev_img.sh')
 
                 # Unmounts device
-                os.system('sudo ~/al_scrape/bash_scripts/unmount_block.sh ' + mount_dir)
+                os.system('sudo ~/al_ui/bash_scripts/unmount_block.sh ' + mount_dir)
 
             # This partition is now finished; subtracts 1 from the partitions that need to be read and returns
             partition_toread -= 1
