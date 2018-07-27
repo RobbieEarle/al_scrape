@@ -66,11 +66,16 @@ partition_toread = 0
 mount_lock = Lock()
 
 # ---------- Assemblyline Server communication
+# To hold reference to Assemblyline client
 terminal = None
+# Inotify observer
+dir_observer = inotify.adapters.Inotify()
 # List of files that have been detected on our mounted device, and are ready to be submitted to AL
 list_to_submit = []
 # List of files that have been submitted to AL, on whom we are awaiting a response
 list_to_receive = []
+# List of directories that have an inotify watch placed on them
+list_to_watch = []
 # List holds all safe files as determined by AL output
 pass_files = []
 # List holds all potentially malicious files as determined by AL output
@@ -91,7 +96,7 @@ def initialize():
     watch for new devices; starts infinite loop watching for new files to submit
     :return:
     """
-    global list_to_submit
+    global list_to_submit, list_to_watch
 
     # Refreshes application's websocket connection to front end application
     refresh_socket()
@@ -104,35 +109,21 @@ def initialize():
     device_observer = pyudev.MonitorObserver(monitor, block_event)
     device_observer.start()
 
-    folder_observer = inotify.adapters.Inotify()
-    folder_observer.add_watch(ingest_dir)
+    dir_observer.add_watch(ingest_dir)
     while True:
-        for event in folder_observer.event_gen():
+        for event in dir_observer.event_gen():
             if event is not None:
-                # (header, type_names, watch_path, filename) = event
+                (header, type_names, watch_path, filename) = event
                 print " ----------- Event: " + str(event)
-
-
-    # # Initializes infinite loop that will continue to run on the main thread
-    # i = adapters.InotifyTree(ingest_dir)
-    # while True:
-    #     # Loop watches for new additions to imported_files directory
-    #     for event in i.event_gen():
-    #         if event is not None:
-    #
-    #             print " -- EVENT: " + str(event)
-    #
-    #             # Stores the event type, pathname, and filename for this event
-    #             (_, type_names, path, filename) = event
-    #             for e_type in type_names:
-    #
-    #                 print " -- EVENT TYPE: " + str(e_type)
-    #
-    #                 # If our event is that we've finished writing a file to imported_files, passes that file's path into
-    #                 # our list_to_submit
-    #                 if e_type == 'IN_CLOSE_WRITE' and filename != '':
-    #                     dir_to_ingest = path + '/' + filename
-    #                     list_to_submit.append(dir_to_ingest)
+                for e_type in type_names:
+                    # If our event is that we've finished writing a file to imported_files, passes that file's path into
+                    # our list_to_submit
+                    new_file = watch_path + '/' + filename
+                    if e_type == 'IN_CREATE' and type_names[0] == 'IN_ISDIR' and filename != '':
+                        print " -- ADDING WATCH TO: " + watch_path + '/' + filename
+                        dir_observer.add_watch(new_file)
+                    if e_type == 'IN_CLOSE_WRITE' and filename != '':
+                        list_to_submit.append(new_file)
 
 
 def refresh_socket():
@@ -367,7 +358,7 @@ def copy_files(device_id):
             if device_id in active_devices:
 
                 # Mounts device
-                os.system('sudo ~/al_ui/bash_scripts/mount_block.sh ' + device_id +
+                os.system('sudo ~/al_scrape/bash_scripts/mount_block.sh ' + device_id +
                           ' ' + mount_dir)
 
                 # Makes new directory for this partition
@@ -377,10 +368,10 @@ def copy_files(device_id):
                 os.system('cp -a ' + mount_dir + ' ' + ingest_dir + device_id)
 
                 # Removes Image
-                os.system('sudo ~/al_ui/bash_scripts/remove_dev_img.sh')
+                os.system('sudo ~/al_scrape/bash_scripts/remove_dev_img.sh')
 
                 # Unmounts device
-                os.system('sudo ~/al_ui/bash_scripts/unmount_block.sh ' + mount_dir)
+                os.system('sudo ~/al_scrape/bash_scripts/unmount_block.sh ' + mount_dir)
 
             # This partition is now finished; subtracts 1 from the partitions that need to be read and returns
             partition_toread -= 1
@@ -394,7 +385,7 @@ def clear_files(device_id):
     :return:
     """
 
-    global active_devices, socketIO, scrape_stage
+    global active_devices, socketIO, scrape_stage, list_to_watch, dir_observer
 
     # Removes this partition from the array of currently connected devices
     if len(active_devices) != 0:
@@ -405,6 +396,10 @@ def clear_files(device_id):
 
     # If all devices have been removed, resets list and clears the imported files directory
     if len(active_devices) == 0:
+        # for directory in list_to_watch:
+        #     print " -- REMOVING WATCH FROM: " + directory
+        #     dir_observer.remove_watch(directory)
+        # list_to_watch = []
         scrape_stage = 0
         socketIO.emit('be_device_event', 'disconnected')
         os.system('rm -rf ' + ingest_dir + '/*')
