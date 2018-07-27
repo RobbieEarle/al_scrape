@@ -96,7 +96,7 @@ def initialize():
     watch for new devices; starts infinite loop watching for new files to submit
     :return:
     """
-    global list_to_submit, list_to_watch
+    global list_to_submit, dir_observer, list_to_watch
 
     # Refreshes application's websocket connection to front end application
     refresh_socket()
@@ -120,10 +120,32 @@ def initialize():
                     # our list_to_submit
                     new_file = watch_path + '/' + filename
                     if e_type == 'IN_CREATE' and type_names[0] == 'IN_ISDIR' and filename != '':
-                        print " -- ADDING WATCH TO: " + watch_path + '/' + filename
                         dir_observer.add_watch(new_file)
+                        list_to_watch.append(new_file)
+                        print " -- ADDING WATCH TO: " + watch_path + '/' + filename
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
                         list_to_submit.append(new_file)
+
+    # # Initializes infinite loop that will continue to run on the main thread
+    # i = adapters.InotifyTree(ingest_dir)
+    # while True:
+    #     # Loop watches for new additions to imported_files directory
+    #     for event in i.event_gen():
+    #         if event is not None:
+    #
+    #             print " -- EVENT: " + str(event)
+    #
+    #             # Stores the event type, pathname, and filename for this event
+    #             (_, type_names, path, filename) = event
+    #             for e_type in type_names:
+    #
+    #                 print " -- EVENT TYPE: " + str(e_type)
+    #
+    #                 # If our event is that we've finished writing a file to imported_files, passes that file's path into
+    #                 # our list_to_submit
+    #                 if e_type == 'IN_CLOSE_WRITE' and filename != '':
+    #                     dir_to_ingest = path + '/' + filename
+    #                     list_to_submit.append(dir_to_ingest)
 
 
 def refresh_socket():
@@ -396,10 +418,13 @@ def clear_files(device_id):
 
     # If all devices have been removed, resets list and clears the imported files directory
     if len(active_devices) == 0:
-        # for directory in list_to_watch:
-        #     print " -- REMOVING WATCH FROM: " + directory
-        #     dir_observer.remove_watch(directory)
-        # list_to_watch = []
+        for directory in reversed(list_to_watch):
+            print " -- REMOVING WATCH FROM: " + directory
+            try:
+                dir_observer.remove_watch(directory)
+            except Exception as e:
+                logging.critical(str(e))
+        list_to_watch = []
         scrape_stage = 0
         socketIO.emit('be_device_event', 'disconnected')
         os.system('rm -rf ' + ingest_dir + '/*')
