@@ -4,7 +4,6 @@
 
 import pyudev
 import os
-import sys
 from threading import Thread, Lock
 from assemblyline_client import Client
 from inotify import adapters
@@ -12,34 +11,12 @@ import inotify
 from socketIO_client import SocketIO
 import time
 
-import logging
-from logging.handlers import RotatingFileHandler
-
-
-# ============== Setting Up Logging ==============
-
-LOG_FILENAME = '/tmp/kiosk.log'
-
-my_logger = logging.getLogger('socketIO-client')
-my_logger.setLevel(logging.DEBUG)
-handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=500000, backupCount=5)
-my_logger.addHandler(handler)
-
-logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
-                    filename="/tmp/kiosk.log",
-                    level=logging.DEBUG,
-                    datefmt='%Y-%m-%d %H:%M:%S')
-
 
 # ============== Default Property Values ==============
 
 # ---------- Initialization Variables
 # The name given to this terminal
 terminal_id = ''
-# Directory where we will mount our block device
-mount_dir = '/tmp/temp_device'
-# Directory where all imported files (copied from block device) are temporarily stored before being sent to AL
-ingest_dir = '/tmp/imported_files'
 
 # ---------- Block device importing
 # List of all active devices (devices that are currently plugged in)
@@ -72,7 +49,7 @@ scrape_stage = 0
 socketIO = None
 
 
-# ============== Main Functions ==============
+# ============== Upkeep Functions ==============
 
 def initialize():
     """
@@ -93,7 +70,7 @@ def initialize():
     device_observer = pyudev.MonitorObserver(monitor, block_event)
     device_observer.start()
 
-    dir_observer.add_watch(ingest_dir)
+    dir_observer.add_watch('/tmp/imported_files')
     while True:
         for event in dir_observer.event_gen():
             if event is not None:
@@ -114,17 +91,14 @@ def refresh_socket():
     Called on initialization. Refreshes our socketio connection to external Flask application
     :return:
     """
-    global my_logger, socketIO
+    global socketIO
 
-    my_logger.debug("Refreshing socket")
     try:
         socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
+
     except Exception:
-        logging.error("Error: socket connection unsuccessful, retrying...")
         time.sleep(3)
         refresh_socket()
-
-    my_logger.debug("Refreshing socket finished")
 
 
 def refresh_session():
@@ -142,8 +116,8 @@ def refresh_session():
         try:
             dir_observer.remove_watch(directory)
         except Exception as e:
-            logging.warning(str(e))
-    os.system('rm -rf ' + ingest_dir + '/*')
+            print str(e)
+    os.system('rm -rf /tmp/imported_files' + '/*')
     list_to_submit = []
     list_to_receive = []
     mal_files = []
@@ -171,9 +145,7 @@ def new_session(settings):
     :param settings:
     :return:
     """
-    global my_logger, terminal, terminal_id, scrape_stage
-
-    my_logger.debug("New session starting")
+    global terminal, terminal_id, scrape_stage
 
     # Scrape Stage 0 - Connecting to Assemblyline server
     scrape_stage = 0
@@ -185,8 +157,7 @@ def new_session(settings):
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
         terminal_id = settings["id"]
     except Exception as e:
-        logging.error(str(e))
-        logging.error(settings["address"], settings["username"], settings["api_key"])
+        print str(e)
         socketIO.emit('be_device_event', 'al_server_failure')
 
     # If server connection is successful
@@ -197,6 +168,9 @@ def new_session(settings):
 
         # Scrape Stage 1 - Server connected; awaiting credentials
         scrape_stage = 1
+
+        # time.sleep(4)
+        # safe_emit_log()
 
         # Runs perpetually until it receives the start scan message from the server (which would bring us to
         # scrape_stage = 2), or until the device is removed (which would bring us back to scrape_stage = 0)
@@ -232,9 +206,8 @@ def kiosk(msg):
     :param msg: message to be sent
     :return:
     """
-    global my_logger, socketIO
+    global socketIO
 
-    my_logger.debug("[" + terminal_id + "] : " + msg)
     socketIO.emit('be_to_kiosk', msg)
 
 
@@ -254,12 +227,8 @@ def check_done():
 
         # Scrape Stage 4 - Scan finished
         scrape_stage = 4
-        socketIO.emit('be_pass_files', pass_files)
         time.sleep(0.1)
-        socketIO.emit('be_mal_files', mal_files, terminal_id)
-        time.sleep(0.1)
-        socketIO.emit('be_device_event', 'done_loading')
-        time.sleep(0.1)
+        socketIO.emit('be_device_event', 'done_loading', pass_files, mal_files)
 
 
 # ============== MonitorObserver Functions ==============
@@ -275,7 +244,6 @@ def block_event(action, device):
     global partition_toread
     global active_devices
     global socketIO
-    global my_logger
 
     device_id = device.device_node
 
@@ -285,8 +253,6 @@ def block_event(action, device):
         # The DEVTYPE "disk" occurs once when a new device is detected
         if device.get('DEVTYPE') == 'disk':
 
-            my_logger.debug("New device detected")
-
             # Announces a new device has been detected to front end
             socketIO.emit('be_device_event', 'connected')
 
@@ -294,7 +260,7 @@ def block_event(action, device):
             Thread(target=session_login, name='session_login').start()
 
             # Makes new folder to hold partitions from this disk
-            path_new = os.path.normpath(ingest_dir + device_id)
+            path_new = os.path.normpath('/tmp/imported_files' + device_id)
             path_split = path_new.split(os.sep)
             dir_new = ''
             for x in path_split[:-1]:
@@ -304,8 +270,6 @@ def block_event(action, device):
         # The DEVTYPE "partition" occurs once for each partition on a given device. If the device is not
         # partitioned, this event will still fire once for the main device drive
         elif device.get('DEVTYPE') == 'partition':
-
-            my_logger.debug("Partition loaded")
 
             # Increments the number of partitions that are waiting to be read
             partition_toread += 1
@@ -334,8 +298,6 @@ def copy_files(device_id):
     global mount_lock
     global partition_toread
     global active_devices
-    global mount_dir
-    global ingest_dir
 
     while len(active_devices) != 0:
 
@@ -346,20 +308,20 @@ def copy_files(device_id):
             if device_id in active_devices:
 
                 # Mounts device
-                os.system('sudo ~/al_scrape/bash_scripts/mount_block.sh ' + device_id +
-                          ' ' + mount_dir)
+                os.system('sudo ~/al_ui/bash_scripts/mount_block.sh ' + device_id +
+                          ' /tmp/temp_device')
 
                 # Makes new directory for this partition
-                os.system('mkdir -p ' + ingest_dir + device_id)
+                os.system('mkdir -p tmp/imported_files' + device_id)
 
                 # Copies files directly into directory to be ingested
-                os.system('cp -a ' + mount_dir + ' ' + ingest_dir + device_id)
+                os.system('cp -a /tmp/temp_device' + ' /tmp/imported_files' + device_id)
 
                 # Removes Image
-                os.system('sudo ~/al_scrape/bash_scripts/remove_dev_img.sh')
+                os.system('sudo ~/al_ui/bash_scripts/remove_dev_img.sh')
 
                 # Unmounts device
-                os.system('sudo ~/al_scrape/bash_scripts/unmount_block.sh ' + mount_dir)
+                os.system('sudo ~/al_ui/bash_scripts/unmount_block.sh /tmp/temp_device')
 
             # This partition is now finished; subtracts 1 from the partitions that need to be read and returns
             partition_toread -= 1
@@ -373,14 +335,14 @@ def clear_files(device_id):
     :return:
     """
 
-    global my_logger, active_devices, socketIO, scrape_stage, list_to_watch, dir_observer
+    global active_devices, socketIO, scrape_stage, list_to_watch, dir_observer
 
     # Removes this partition from the array of currently connected devices
     if len(active_devices) != 0:
         active_devices.remove(device_id)
 
     # Removes the folder in imported_files containing the files corresponding to the removed device
-    os.system('rm -rf ' + ingest_dir + device_id)
+    os.system('rm -rf /tmp/imported_files' + device_id)
 
     # If all devices have been removed, resets list and clears the imported files directory
     if len(active_devices) == 0:
@@ -388,12 +350,11 @@ def clear_files(device_id):
             try:
                 dir_observer.remove_watch(directory)
             except Exception as e:
-                logging.warning(str(e))
+                print str(e)
         list_to_watch = []
         scrape_stage = 0
         socketIO.emit('be_device_event', 'disconnected')
-        os.system('rm -rf ' + ingest_dir + '/*')
-        my_logger.debug("All devices successfully removed")
+        os.system('rm -rf /tmp/imported_files' + '/*')
 
 
 # ============== Submit / Receive Assemblyline Server Functions ==============
@@ -412,9 +373,6 @@ def submit_thread(queue):
     global socketIO
     global list_to_receive
     global terminal_id
-    global my_logger
-
-    my_logger.debug("Submit thread started")
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while 1 < scrape_stage < 4:
@@ -456,8 +414,6 @@ def submit_thread(queue):
         else:
             time.sleep(1)
 
-    my_logger.debug("Submit thread finished")
-
 
 def receive_thread(queue):
     """
@@ -474,9 +430,6 @@ def receive_thread(queue):
     global active_devices
     global terminal
     global socketIO
-    global my_logger
-
-    my_logger.debug("Receive thread started")
 
     while 1 < scrape_stage < 4:
 
@@ -501,21 +454,14 @@ def receive_thread(queue):
 
                     if score >= 500:
                         kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
-                        full_msg = terminal.submission.full(sid)
-                        full_path = full_msg['submission']['metadata']['path']
-                        full_msg['submission']['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
-                        mal_files.append(full_msg)
+                        mal_files.append(sid)
 
-                    elif score > 0:
-                        full_path = msg['metadata']['path']
-                        msg['metadata']['path'] = full_path[full_path.find('temp_device') + 11:]
-                        pass_files.append(msg)
+                    else:
+                        pass_files.append(sid)
 
         else:
             check_done()
             time.sleep(1)
-
-    my_logger.debug("Receive thread finished")
 
 
 # ============== Initialization ==============
@@ -523,8 +469,8 @@ def receive_thread(queue):
 if __name__ == '__main__':
 
     # Creates directories to be used by our application to mount devices, and to hold files that are awaiting ingestion
-    os.system('mkdir -p ' + mount_dir)
-    os.system('mkdir -p ' + ingest_dir)
+    os.system('mkdir -p /tmp/temp_device')
+    os.system('mkdir -p /tmp/imported_files')
 
     # Initializes application
     initialize()
