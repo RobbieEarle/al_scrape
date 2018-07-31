@@ -4,6 +4,7 @@
 
 import pyudev
 import os
+import sys
 from threading import Thread, Lock
 from assemblyline_client import Client
 from inotify import adapters
@@ -26,11 +27,28 @@ class OutputHandler(logging.Handler):
         self.socketio.emit('logging', self.format(record))
 
 
+class StreamToLogger(object):
+    """
+    Fake file-like stream object that redirects writes to a logger instance.
+    """
+
+    def __init__(self, logger, log_level):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line.rstrip())
+
+
 # format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
 # date_format = '%Y-%m-%d %H:%M:%S'
 # formatter = logging.Formatter(format_str, date_format)
 my_logger = logging.getLogger("alda_sandbox")
 my_logger.setLevel(logging.DEBUG)
+
+sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 
 # ============== Default Property Values ==============
 
@@ -443,7 +461,8 @@ def submit_thread(queue):
         else:
             time.sleep(1)
 
-        my_logger.info("Submit thread: finished")
+    my_logger.info("Submit thread: finished")
+
 
 def receive_thread(queue):
     """
