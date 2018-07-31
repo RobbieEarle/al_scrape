@@ -45,8 +45,8 @@ class StreamToLogger(object):
 
 # format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
 # date_format = '%Y-%m-%d %H:%M:%S'
-formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
-my_logger = logging.getLogger("alda_sandbox")
+formatter = logging.Formatter('%(name)s: %(levelname)s:\t %(message)s')
+my_logger = logging.getLogger("[SANDBOX_VM_OUTPUT]")
 my_logger.setLevel(logging.DEBUG)
 
 sys.stderr = StreamToLogger(my_logger, logging.ERROR)
@@ -428,7 +428,7 @@ def submit_thread(queue):
                 # Checks if the file is empty; ingest is unable to examine empty files. Returns a warning if one is
                 # submitted
                 if os.stat(ingest_path).st_size != 0:
-                    
+
                     # Outputs the name of file to be ingested to the front end
                     socketIO.emit("be_ingest_status", "submit_file", os.path.basename(ingest_path))
 
