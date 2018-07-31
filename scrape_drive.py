@@ -26,9 +26,9 @@ class OutputHandler(logging.Handler):
         self.socketio.emit('logging', self.format(record))
 
 
-format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
-date_format = '%Y-%m-%d %H:%M:%S'
-formatter = logging.Formatter(format_str, date_format)
+# format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
+# date_format = '%Y-%m-%d %H:%M:%S'
+# formatter = logging.Formatter(format_str, date_format)
 my_logger = logging.getLogger("alda_sandbox")
 my_logger.setLevel(logging.DEBUG)
 
@@ -118,8 +118,6 @@ def refresh_socket():
         socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
 
         socket_handler = OutputHandler(socket=socketIO, level=logging.DEBUG)
-        socket_handler.setFormatter(formatter)
-
         my_logger.addHandler(socket_handler)
 
     except Exception:
