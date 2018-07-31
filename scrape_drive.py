@@ -102,6 +102,7 @@ def initialize():
                     if e_type == 'IN_CREATE' and type_names[0] == 'IN_ISDIR' and filename != '':
                         dir_observer.add_watch(new_file)
                         list_to_watch.append(new_file)
+                        my_logger.info("Created and added inotify watch to directory: " + new_file)
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
                         list_to_submit.append(new_file)
 
@@ -119,12 +120,11 @@ def refresh_socket():
         socket_handler = OutputHandler(socket=socketIO, level=logging.DEBUG)
         socket_handler.setFormatter(formatter)
 
-        # my_logger.addHandler(socket_handler)
+        my_logger.addHandler(socket_handler)
 
     except Exception:
         time.sleep(3)
         refresh_socket()
-
 
 
 def refresh_session():
@@ -138,6 +138,7 @@ def refresh_session():
     global mal_files
     global pass_files
 
+    terminal.ingest.get_message_list(terminal_id)
     list_to_submit = []
     list_to_receive = []
     mal_files = []
@@ -167,6 +168,9 @@ def new_session(settings):
     """
     global terminal, terminal_id, scrape_stage
 
+    my_logger.info("Beginning new session")
+    time.sleep(0.1)
+
     # Scrape Stage 0 - Connecting to Assemblyline server
     scrape_stage = 0
     refresh_session()
@@ -178,6 +182,8 @@ def new_session(settings):
         terminal_id = settings["id"]
     except Exception as e:
         socketIO.emit('be_device_event', 'al_server_failure')
+        my_logger.error("Error: " + str(e))
+        time.sleep(0.1)
 
     # If server connection is successful
     if terminal is not None:
@@ -371,6 +377,7 @@ def clear_files(device_id):
             time.sleep(0.1)
             try:
                 dir_observer.remove_watch(directory)
+                my_logger.info("Removed inotify watch on: " + directory)
             except Exception as e:
                 my_logger.error("Could not remove watch on: " + directory)
         list_to_watch = []
@@ -395,6 +402,8 @@ def submit_thread(queue):
     global socketIO
     global list_to_receive
     global terminal_id
+
+    my_logger.info("Submit thread: begin")
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while 1 < scrape_stage < 4:
@@ -436,6 +445,7 @@ def submit_thread(queue):
         else:
             time.sleep(1)
 
+        my_logger.info("Submit thread: finished")
 
 def receive_thread(queue):
     """
@@ -452,6 +462,8 @@ def receive_thread(queue):
     global active_devices
     global terminal
     global socketIO
+
+    my_logger.info("Receive thread: begin")
 
     while 1 < scrape_stage < 4:
 
@@ -485,10 +497,13 @@ def receive_thread(queue):
             check_done()
             time.sleep(1)
 
+    my_logger.info("Receive thread: finished")
+
 
 # ============== Initialization ==============
 
 if __name__ == '__main__':
+
     # Creates directories to be used by our application to mount devices, and to hold files that are awaiting ingestion
     os.system('mkdir -p /tmp/temp_device')
     os.system('mkdir -p /tmp/imported_files')
