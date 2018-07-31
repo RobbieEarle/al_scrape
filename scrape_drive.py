@@ -138,7 +138,6 @@ def refresh_session():
     global mal_files
     global pass_files
 
-    terminal.ingest.get_message_list(terminal_id)
     list_to_submit = []
     list_to_receive = []
     mal_files = []
@@ -180,6 +179,7 @@ def new_session(settings):
     try:
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
         terminal_id = settings["id"]
+        terminal.ingest.get_message_list(terminal_id)
     except Exception as e:
         socketIO.emit('be_device_event', 'al_server_failure')
         my_logger.error("Error: " + str(e))
