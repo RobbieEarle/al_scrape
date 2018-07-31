@@ -240,17 +240,6 @@ def start_scan(*args):
     scrape_stage = 2
 
 
-def kiosk(msg):
-    """
-    Handles console output. Sends message to webapp and also logs
-    :param msg: message to be sent
-    :return:
-    """
-    global socketIO
-
-    socketIO.emit('be_to_kiosk', msg)
-
-
 def check_done():
     """
     Called by our receive thread whenever it runs out of messages to report from the server. Checks if there are still
@@ -440,8 +429,6 @@ def submit_thread(queue):
                 # submitted
                 if os.stat(ingest_path).st_size != 0:
 
-                    socketIO.emit("be_ingest_status", "submit_file")
-
                     # Appends the file to the array of files in regards to which we are waiting for a response from the
                     # Assemblyline server
                     list_to_receive.append(os.path.basename(ingest_path))
@@ -455,10 +442,7 @@ def submit_thread(queue):
                     os.system('rm -f \'' + ingest_path + '\'')
 
                     # Outputs the name of file to be ingested to the front end
-                    kiosk('Ingesting: ' + os.path.basename(ingest_path))
-
-                else:
-                    kiosk('Unable to ingest, empty file: ' + os.path.basename(ingest_path))
+                    socketIO.emit("be_ingest_status", "submit_file", os.path.basename(ingest_path))
 
         else:
             time.sleep(1)
@@ -499,14 +483,12 @@ def receive_thread(queue):
                 new_file = os.path.basename(msg['metadata']['path'])
                 if new_file in list_to_receive:
                     list_to_receive.remove(new_file)
-                    socketIO.emit("be_ingest_status", "receive_file")
 
                     score = msg['metadata']['al_score']
                     sid = msg['alert']['sid']
-                    kiosk('   Server Received: ' + new_file)
+                    socketIO.emit("be_ingest_status", "receive_file", new_file)
 
                     if score >= 500:
-                        kiosk('        [ ! ] WARNING - Potentially malicious file: ' + new_file)
                         mal_files.append(sid)
 
                     else:
