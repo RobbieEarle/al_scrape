@@ -39,8 +39,7 @@ class StreamToLogger(object):
 
     def write(self, buf):
         for line in buf.rstrip().splitlines():
-            self.linebuf = self.linebuf + line + "\r\n"
-        self.logger.log(self.log_level, self.linebuf)
+            self.logger.log(self.log_level, line.rstrip())
 
 
 # format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
