@@ -35,11 +35,12 @@ class StreamToLogger(object):
     def __init__(self, logger, log_level):
         self.logger = logger
         self.log_level = log_level
-        self.linebuf = ''
+        self.linebuf = '\r\n'
 
     def write(self, buf):
         for line in buf.rstrip().splitlines():
-            self.logger.log(self.log_level, "\r\n" + line.rstrip())
+            self.linebuf = self.linebuf + line + "\r\n"
+        self.logger.log(self.log_level, self.linebuf)
 
 
 # format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
