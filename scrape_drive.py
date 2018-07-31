@@ -11,6 +11,26 @@ import inotify
 from socketIO_client import SocketIO
 import time
 
+import logging
+
+
+# ============== Logging ==============
+
+class OutputHandler(logging.Handler):
+
+    def __init__(self, socket, *args, **kwargs):
+        logging.Handler.__init__(self, *args, **kwargs)
+        self.socketio = socket
+
+    def emit(self, record):
+        self.socketio.emit('logging', self.format(record))
+
+
+format_str = '%(asctime)s: %(levelname)s:\t %(name)s: %(message)s'
+date_format = '%Y-%m-%d %H:%M:%S'
+formatter = logging.Formatter(format_str, date_format)
+my_logger = logging.getLogger("alda_sandbox")
+my_logger.setLevel(logging.DEBUG)
 
 # ============== Default Property Values ==============
 
@@ -82,6 +102,7 @@ def initialize():
                     if e_type == 'IN_CREATE' and type_names[0] == 'IN_ISDIR' and filename != '':
                         dir_observer.add_watch(new_file)
                         list_to_watch.append(new_file)
+                        my_logger.info("Created and added inotify watch to directory: " + new_file)
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
                         list_to_submit.append(new_file)
 
@@ -96,9 +117,17 @@ def refresh_socket():
     try:
         socketIO = SocketIO('http://10.0.2.2:5000', verify=False)
 
+        socket_handler = OutputHandler(socket=socketIO, level=logging.DEBUG)
+        socket_handler.setFormatter(formatter)
+
+        my_logger.addHandler(socket_handler)
+
     except Exception:
         time.sleep(3)
         refresh_socket()
+
+    my_logger.info("Connection with server established")
+    time.sleep(0.1)
 
 
 def refresh_session():
@@ -116,7 +145,8 @@ def refresh_session():
         try:
             dir_observer.remove_watch(directory)
         except Exception as e:
-            print str(e)
+            my_logger.error("Error: " + str(e))
+            time.sleep(0.1)
     os.system('rm -rf /tmp/imported_files' + '/*')
     list_to_submit = []
     list_to_receive = []
@@ -147,6 +177,9 @@ def new_session(settings):
     """
     global terminal, terminal_id, scrape_stage
 
+    my_logger.info("Beginning new session")
+    time.sleep(0.1)
+
     # Scrape Stage 0 - Connecting to Assemblyline server
     scrape_stage = 0
     refresh_session()
@@ -157,7 +190,8 @@ def new_session(settings):
         terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
         terminal_id = settings["id"]
     except Exception as e:
-        print str(e)
+        my_logger.error("Error: " + str(e))
+        time.sleep(0.1)
         socketIO.emit('be_device_event', 'al_server_failure')
 
     # If server connection is successful
@@ -323,8 +357,10 @@ def copy_files(device_id):
                 # Unmounts device
                 os.system('sudo ~/al_ui/bash_scripts/unmount_block.sh /tmp/temp_device')
 
+            time.sleep(3)
             # This partition is now finished; subtracts 1 from the partitions that need to be read and returns
             partition_toread -= 1
+
             return
 
 
@@ -335,7 +371,7 @@ def clear_files(device_id):
     :return:
     """
 
-    global active_devices, socketIO, scrape_stage, list_to_watch, dir_observer
+    global active_devices, socketIO, scrape_stage, list_to_watch, dir_observer, partition_toread
 
     # Removes this partition from the array of currently connected devices
     if len(active_devices) != 0:
@@ -346,11 +382,16 @@ def clear_files(device_id):
 
     # If all devices have been removed, resets list and clears the imported files directory
     if len(active_devices) == 0:
+
+        partition_toread = 0
+
         for directory in reversed(list_to_watch):
+            time.sleep(0.1)
             try:
                 dir_observer.remove_watch(directory)
+                my_logger.info("Removed inotify watch on: " + directory)
             except Exception as e:
-                print str(e)
+                my_logger.error("Could not remove watch on: " + directory)
         list_to_watch = []
         scrape_stage = 0
         socketIO.emit('be_device_event', 'disconnected')
@@ -373,6 +414,8 @@ def submit_thread(queue):
     global socketIO
     global list_to_receive
     global terminal_id
+
+    my_logger.info("Submit thread: begin")
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while 1 < scrape_stage < 4:
@@ -414,6 +457,8 @@ def submit_thread(queue):
         else:
             time.sleep(1)
 
+    my_logger.info("Submit thread: finished")
+
 
 def receive_thread(queue):
     """
@@ -430,6 +475,8 @@ def receive_thread(queue):
     global active_devices
     global terminal
     global socketIO
+
+    my_logger.info("Receive thread: begin")
 
     while 1 < scrape_stage < 4:
 
@@ -462,6 +509,8 @@ def receive_thread(queue):
         else:
             check_done()
             time.sleep(1)
+
+    my_logger.info("Receive thread: finished")
 
 
 # ============== Initialization ==============
