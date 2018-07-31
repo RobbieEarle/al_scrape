@@ -428,6 +428,9 @@ def submit_thread(queue):
                 # Checks if the file is empty; ingest is unable to examine empty files. Returns a warning if one is
                 # submitted
                 if os.stat(ingest_path).st_size != 0:
+                    
+                    # Outputs the name of file to be ingested to the front end
+                    socketIO.emit("be_ingest_status", "submit_file", os.path.basename(ingest_path))
 
                     # Appends the file to the array of files in regards to which we are waiting for a response from the
                     # Assemblyline server
@@ -440,9 +443,6 @@ def submit_thread(queue):
 
                     # Deletes this file
                     os.system('rm -f \'' + ingest_path + '\'')
-
-                    # Outputs the name of file to be ingested to the front end
-                    socketIO.emit("be_ingest_status", "submit_file", os.path.basename(ingest_path))
 
         else:
             time.sleep(1)
