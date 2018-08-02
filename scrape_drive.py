@@ -89,7 +89,7 @@ mal_files = []
 # Identifies where our user is in the scrape process
 scrape_stage = 0
 
-# ---------- Kiosk communication
+# ---------- Front end communication
 # Creates socket between web app and this module
 socketIO = None
 
