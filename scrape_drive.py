@@ -107,13 +107,14 @@ def initialize():
     # Refreshes application's websocket connection to front end application
     refresh_socket()
 
-    # Tell front end that application is ready to receive device
-
     # Initializes pyudev observer thread that is going to monitor for device events (devices added / removed)
     context = pyudev.Context()
     monitor = pyudev.Monitor.from_netlink(context)
     device_observer = pyudev.MonitorObserver(monitor, block_event)
     device_observer.start()
+
+    # Tells front end that application is ready to receive device
+    socketIO.emit("be_connected")
 
     # Places a watch on our imported_files folder
     dir_observer.add_watch('/tmp/imported_files')
