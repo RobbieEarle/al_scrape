@@ -24,7 +24,8 @@ VM is running. Assemblyline Scrape's purpose is as follows:
 
 ##### Setting Up VirtualBox
 
-Install VirtualBox
+- Install VirtualBox
 
-- `sudo apt-get install virtualbox`
-- `sudo apt-get install virtualbox-dkms`
+`sudo apt-get install virtualbox`
+
+`sudo apt-get install virtualbox-dkms`
