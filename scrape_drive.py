@@ -1,26 +1,33 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-
+from threading import Thread, Lock
+from assemblyline_client import Client
+from inotify import adapters
+from socketIO_client import SocketIO
 import pyudev
 import os
 import sys
-from threading import Thread, Lock, Timer
-from assemblyline_client import Client
-from inotify import adapters
 import inotify
-from socketIO_client import SocketIO
 import time
-
 import logging
 
 
 # ============== Logging ==============
 
-# Outputs all logs to front end so they are not lost when VM refreshes
 class OutputHandler(logging.Handler):
+    """
+    Logging handler that outputs all logs to front end so they are not lost when VM refreshes
+    """
 
     def __init__(self, socket, *args, **kwargs):
+        """
+        Initialization method
+        :param socket: Address of socketio server to which our messages will be forwarded
+        :param args: To be passed to Handler
+        :param kwargs: To be passed to Handler
+        """
+
         logging.Handler.__init__(self, *args, **kwargs)
         self.socketio = socket
 
@@ -28,18 +35,29 @@ class OutputHandler(logging.Handler):
         self.socketio.emit('logging', self.format(record))
 
 
-# Used to stream stderr to our logger
 class StreamToLogger(object):
     """
-    Fake file-like stream object that redirects writes to a logger instance.
+    Class used to stream stderr to our logger
     """
 
     def __init__(self, logger, log_level):
+        """
+        Initialization method
+        :param logger: Logger to which we want to stream our messages
+        :param log_level: The level on which we want to stream these messages
+        """
+
         self.logger = logger
         self.log_level = log_level
         self.linebuf = '\r\n'
 
     def write(self, buf):
+        """
+        Called by stderr when it wants to output a message
+        :param buf: String message passed in by stderr
+        :return:
+        """
+
         for line in buf.rstrip().splitlines():
             self.linebuf = self.linebuf + line + "\r\n"
         self.logger.log(self.log_level, self.linebuf)
@@ -56,12 +74,9 @@ sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 
 # ============== Default Property Values ==============
 
-# ---------- Initialization Variables
+# ---------- Block device importing
 # The name given to this terminal
 terminal_id = ''
-timeout_timer = 0
-
-# ---------- Block device importing
 # Controls whether or not a device has been found for this session yet
 session_id = ''
 # Whether or not a device has been detected yet
@@ -89,6 +104,9 @@ pass_files = []
 mal_files = []
 # Identifies where our user is in the scrape process
 scrape_stage = 0
+# Integer that will be incremented up every second once our scan starts. Is reset to 0 every time a message is
+# submitted or received from the server. If it ever reaches 60, causes a timeout
+timeout_timer = 0
 
 # ---------- Front end communication
 # Creates socket between web app and this module
@@ -162,10 +180,7 @@ def refresh_session():
     values
     :return:
     """
-    global list_to_submit
-    global list_to_receive
-    global mal_files
-    global pass_files
+    global list_to_submit, list_to_receive, mal_files, pass_files
 
     list_to_submit = []
     list_to_receive = []
@@ -181,6 +196,7 @@ def session_login():
     from our Flask app; once received, calls new session
     :return:
     """
+
     socketIO.emit("be_retrieve_settings", new_session)
     socketIO.wait_for_callbacks(seconds=1)
 
@@ -191,7 +207,7 @@ def new_session(settings):
     connect to the Assemblyline server: if able, tells the front end and waits to receive back the start signal (this
     comes only once all mandatory credentials have been entered). When start signal is received, starts up the submit
     and receive threads
-    :param settings:
+    :param settings: dict object; contains the Assemblyline credentials we need to connect to the server
     :return:
     """
     global terminal, terminal_id, scrape_stage
@@ -247,7 +263,11 @@ def new_session(settings):
             rt.start()
 
 
-def start_scan(*args):
+def start_scan():
+    """
+    Called by front end when user credentials have been entered
+    :return:
+    """
     global scrape_stage
 
     # Scrape Stage 2 - Credentials received; starting scan
@@ -260,8 +280,7 @@ def check_done():
     partitions left to read, or files waiting to be submitted / received - if not, we know our scan is complete
     :return:
     """
-    global socketIO
-    global scrape_stage
+    global socketIO, scrape_stage
 
     # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
     # files have returned messages from the server. If all these are true then we are finished ingesting files and
@@ -290,14 +309,9 @@ def block_event(action, device):
     :return:
     """
 
-    global devices_to_read
-    global socketIO
-    global session_id
-    global dev_detected
+    global devices_to_read, socketIO, session_id, dev_detected
 
     device_id = device.device_node
-
-    # print device_id, action
 
     # Called when a device is added
     if action == 'add':
@@ -358,13 +372,14 @@ def copy_files(device_id):
     """
     Corresponds to new thread created by each new partition from an attached device. One by one devices are mounted,
     their contents converted to CART and sent to a corresponding imported_files folder, and then unmounted
-    :param device_id: The path of the current device partition
+    :param device_id: String; The path of the current device partition
     :return:
     """
 
-    global mount_lock
-    global devices_to_read
+    global mount_lock, devices_to_read
 
+    # Waits for mount_lock to become available, as long as this device's device_id is in our devices_to_read list (ie.
+    # as long as the device has not been removed)
     while device_id in devices_to_read:
 
         # Waits until mount_lock is available (ie. other partitions have finished mounting)
@@ -443,16 +458,11 @@ def submit_thread(queue):
     """
     Watches for files that are added to the imported_files/dev folder; when new files are added, uploads and deletes
     from the folder once finished
-    :param queue: the name of the ingest queue we want to add this file to
+    :param queue: String; the name of the ingest queue we want to add this file to
     :return:
     """
 
-    global list_to_submit
-    global terminal
-    global socketIO
-    global list_to_receive
-    global terminal_id
-    global timeout_timer
+    global list_to_submit, terminal, socketIO, list_to_receive, terminal_id, timeout_timer
 
     my_logger.info("Submit thread: begin")
 
@@ -500,17 +510,11 @@ def receive_thread(queue):
     """
     Monitors the server for new messages that occur when files have been successfully uploaded. Scans the results to
     see if score is high.
-    :param queue: the name of the ingest queue from which we want to retrieve server messages
+    :param queue: String; the name of the ingest queue from which we want to retrieve server messages
     :return:
     """
 
-    global pass_files
-    global mal_files
-    global list_to_submit
-    global devices_to_read
-    global terminal
-    global socketIO
-    global timeout_timer
+    global pass_files, mal_files, list_to_submit, devices_to_read, terminal, socketIO, timeout_timer
 
     my_logger.info("Receive thread: begin")
 
@@ -528,17 +532,21 @@ def receive_thread(queue):
             for msg in msgs:
                 new_file = os.path.basename(msg['metadata']['path'])
 
+                # Resets timeout timer
                 timeout_timer = 0
 
+                # Makes sure this file is from our current scan (ie. we're not receiving a lingering message from a
+                # previous scan
                 if new_file in list_to_receive:
 
                     score = msg['metadata']['al_score']
                     sid = msg['alert']['sid']
                     socketIO.emit("be_ingest_status", "receive_file", new_file)
 
+                    # If our score is greater than 500, add to list of malicious files
                     if score >= 500:
                         mal_files.append(sid)
-
+                    # Otherwise, add to list of safe files
                     else:
                         pass_files.append(sid)
 
@@ -560,10 +568,13 @@ def timeout_thread():
 
     global timeout_timer, scrape_stage
 
+    # Continuously increments our timeout timer up every second until stage 4 is reached (scan finished), or until
+    # timeout occurs
     while timeout_timer != 60 and scrape_stage != 4:
         timeout_timer += 1
         time.sleep(1)
 
+    # If the above loop exits and we are not in stage four, then we know a timeout has occurred
     if scrape_stage != 4:
         scrape_stage = 4
         time.sleep(0.1)
