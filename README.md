@@ -5,9 +5,9 @@ front end application. These applications are intended to be run on a single ter
 attach block devices in order to have their contents scraped and submitted to a remote Assemblyline server for 
 analysis.
 
-Assemblyline Scrape is intended to run perpetually as a background service within a VirtualBox VM. The host machine on 
-which this VM is running should have al_da running on it, and thus be hosting our front end web app. Assemblyline 
-Scrape's purpose is as follows:
+Assemblyline Scrape is intended to run perpetually as a background service within a VirtualBox VM. The machine on which
+al_da is deployed (ie. the machine hosting our front end application) should be the host machine on which the al_scrape
+VM is running. Assemblyline Scrape's purpose is as follows:
 
 1. Listen for new devices that are attached to the Kiosk
 2. When a new block device is detected, send copies of its contents to the Assemblyline server for analysis
@@ -16,7 +16,15 @@ Scrape's purpose is as follows:
 
 # Installation
 
+### Pre-requisites
+
+- Host machine should be running fresh Ubuntu 16.04.x Desktop install
+
 ### On Host Machine
 
-##### Installing VirtualBox
+##### Setting Up VirtualBox
 
+Install VirtualBox
+
+- `sudo apt-get install virtualbox`
+- `sudo apt-get install virtualbox-dkms`
