@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# coding=utf-8
 
 from threading import Thread, Lock
 from assemblyline_client import Client
@@ -65,7 +63,7 @@ class StreamToLogger(object):
 
 # Formats our logger output
 formatter = logging.Formatter('%(name)s: %(levelname)s:\t %(message)s')
-my_logger = logging.getLogger("[SANDBOX_VM_OUTPUT]")
+my_logger = logging.getLogger('[SANDBOX_VM_OUTPUT]')
 my_logger.setLevel(logging.DEBUG)
 
 # Streams stderr to our logger
@@ -133,7 +131,7 @@ def initialize():
     device_observer.start()
 
     # Tells front end that application is ready to receive device
-    socketIO.emit("be_connected")
+    socketIO.emit('be_connected')
 
     # Places a watch on our imported_files folder
     dir_observer.add_watch('/tmp/imported_files')
@@ -197,7 +195,7 @@ def session_login():
     :return:
     """
 
-    socketIO.emit("be_retrieve_settings", new_session)
+    socketIO.emit('be_retrieve_settings', new_session)
     socketIO.wait_for_callbacks(seconds=1)
 
 
@@ -212,7 +210,7 @@ def new_session(settings):
     """
     global terminal, terminal_id, scrape_stage
 
-    my_logger.info("Beginning new session")
+    my_logger.info('Beginning new session')
     time.sleep(0.1)
 
     # Scrape Stage 0 - Connecting to Assemblyline server
@@ -222,12 +220,12 @@ def new_session(settings):
     # Tries to connect to Assemblyline server; if not able to, prints error
     terminal = None
     try:
-        terminal = Client(settings["address"], apikey=(settings["username"], settings["api_key"]), verify=False)
-        terminal_id = settings["id"]
+        terminal = Client(settings['address'], apikey=(settings['username'], settings['api_key']), verify=False)
+        terminal_id = settings['id']
         terminal.ingest.get_message_list(terminal_id)
     except Exception as e:
         socketIO.emit('be_device_event', 'al_server_failure')
-        my_logger.error("Error: " + str(e))
+        my_logger.error('Error: ' + str(e))
         time.sleep(0.1)
 
     # If server connection is successful
@@ -251,15 +249,15 @@ def new_session(settings):
             # Scrape Stage 3 - Scanning
             scrape_stage = 3
 
-            tot = Thread(target=timeout_thread, name="timeout_thread")
+            tot = Thread(target=timeout_thread, name='timeout_thread')
             tot.start()
 
             # Initializes submit thread. Takes files added to list_to_submit array and submits them to AL server
-            st = Thread(target=submit_thread, args=(terminal_id,), name="submit_thread")
+            st = Thread(target=submit_thread, args=(terminal_id,), name='submit_thread')
             st.start()
 
             # Initializes receive thread. This thread listens for callbacks from the AL server
-            rt = Thread(target=receive_thread, args=(terminal_id,), name="receive_thread")
+            rt = Thread(target=receive_thread, args=(terminal_id,), name='receive_thread')
             rt.start()
 
 
@@ -324,7 +322,7 @@ def block_event(action, device):
 
         if device.subsystem == 'block':
 
-            # The DEVTYPE "disk" occurs once when a new device is detected
+            # The DEVTYPE 'disk' occurs once when a new device is detected
             if device.get('DEVTYPE') == 'disk' and session_id == '':
 
                 # Logs that we have officially started a session for this device
@@ -340,11 +338,11 @@ def block_event(action, device):
                 path_new = os.path.normpath('/tmp/imported_files' + device_id)
                 path_split = path_new.split(os.sep)
                 dir_new = ''
-                for x in path_split[:-1]:
-                    dir_new += x + '/'
+                for path in path_split[:-1]:
+                    dir_new += path + '/'
                 os.system('mkdir -p ' + dir_new)
 
-            # The DEVTYPE "partition" occurs once for each partition on a given device. If the device is not
+            # The DEVTYPE 'partition' occurs once for each partition on a given device. If the device is not
             # partitioned, this event will still fire once for the main device drive
             elif device.get('DEVTYPE') == 'partition':
 
@@ -437,9 +435,9 @@ def clear_files():
         time.sleep(0.1)
         try:
             dir_observer.remove_watch(directory)
-            my_logger.info("Removed inotify watch on: " + directory)
+            my_logger.info('Removed inotify watch on: ' + directory)
         except Exception as e:
-            my_logger.error("Could not remove watch on: " + directory)
+            my_logger.error('Could not remove watch on ' + directory + ': ' + str(e))
 
     # Resets list_to_watch
     list_to_watch = []
@@ -464,7 +462,7 @@ def submit_thread(queue):
 
     global list_to_submit, terminal, socketIO, list_to_receive, terminal_id, timeout_timer
 
-    my_logger.info("Submit thread: begin")
+    my_logger.info('Submit thread: begin')
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while 1 < scrape_stage < 4:
@@ -490,7 +488,7 @@ def submit_thread(queue):
                 if os.stat(ingest_path).st_size != 0:
 
                     # Outputs the name of file to be ingested to the front end
-                    socketIO.emit("be_ingest_status", "submit_file", os.path.basename(ingest_path))
+                    socketIO.emit('be_ingest_status', 'submit_file', os.path.basename(ingest_path))
 
                     # Ingests the file (submits to Assemblyline server via ingest API)
                     terminal.ingest(ingest_path,
@@ -503,7 +501,7 @@ def submit_thread(queue):
         else:
             time.sleep(1)
 
-    my_logger.info("Submit thread: finished")
+    my_logger.info('Submit thread: finished')
 
 
 def receive_thread(queue):
@@ -516,7 +514,7 @@ def receive_thread(queue):
 
     global pass_files, mal_files, list_to_submit, devices_to_read, terminal, socketIO, timeout_timer
 
-    my_logger.info("Receive thread: begin")
+    my_logger.info('Receive thread: begin')
 
     while 1 < scrape_stage < 4:
 
@@ -541,7 +539,7 @@ def receive_thread(queue):
 
                     score = msg['metadata']['al_score']
                     sid = msg['alert']['sid']
-                    socketIO.emit("be_ingest_status", "receive_file", new_file)
+                    socketIO.emit('be_ingest_status', 'receive_file', new_file)
 
                     # If our score is greater than 500, add to list of malicious files
                     if score >= 500:
@@ -556,7 +554,7 @@ def receive_thread(queue):
             check_done()
             time.sleep(1)
 
-    my_logger.info("Receive thread: finished")
+    my_logger.info('Receive thread: finished')
 
 
 def timeout_thread():
