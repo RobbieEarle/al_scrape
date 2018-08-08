@@ -261,7 +261,7 @@ def new_session(settings):
             rt.start()
 
 
-def start_scan():
+def start_scan(*args):
     """
     Called by front end when user credentials have been entered
     :return:
