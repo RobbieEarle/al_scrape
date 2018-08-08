@@ -16,7 +16,7 @@ Scrape's purpose is as follows:
 
 # Installation
 
-## On Host Machine
+### On Host Machine
 
-### Installing VirtualBox
+##### Installing VirtualBox
 
