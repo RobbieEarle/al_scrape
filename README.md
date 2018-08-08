@@ -16,6 +16,9 @@ VM is running. Assemblyline Scrape's purpose is as follows:
 
 # Installation
 
+**NOTE: Currently in the process of making an installation script that will simplify the installation process. In the
+meantime the following steps can be followed to get al_scrape working*
+
 ### Pre-requisites
 
 Host machine should be running fresh Ubuntu 16.04.x Desktop install
@@ -37,5 +40,4 @@ Host machine should be running fresh Ubuntu 16.04.x Desktop install
 - `tail $(modinfo -n vboxdrv) | grep "Module signature appended"`
 - `sudo mokutil --import MOK.der"`
 - `mokutil --test-key MOK.der`
-
-Reboot, perform MDK management, enroll MDK, continue, enroll key, enter pw, reboot
+- Reboot, perform MDK management, enroll MDK, continue, enroll key, enter pw, reboot
