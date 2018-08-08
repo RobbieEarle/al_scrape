@@ -5,7 +5,7 @@
 import pyudev
 import os
 import sys
-from threading import Thread, Lock
+from threading import Thread, Lock, Timer
 from assemblyline_client import Client
 from inotify import adapters
 import inotify
@@ -59,6 +59,7 @@ sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 # ---------- Initialization Variables
 # The name given to this terminal
 terminal_id = ''
+timeout_timer = 0
 
 # ---------- Block device importing
 # Controls whether or not a device has been found for this session yet
@@ -107,13 +108,14 @@ def initialize():
     # Refreshes application's websocket connection to front end application
     refresh_socket()
 
-    # Tell front end that application is ready to receive device
-
     # Initializes pyudev observer thread that is going to monitor for device events (devices added / removed)
     context = pyudev.Context()
     monitor = pyudev.Monitor.from_netlink(context)
     device_observer = pyudev.MonitorObserver(monitor, block_event)
     device_observer.start()
+
+    # Tells front end that application is ready to receive device
+    socketIO.emit("be_connected")
 
     # Places a watch on our imported_files folder
     dir_observer.add_watch('/tmp/imported_files')
@@ -233,6 +235,9 @@ def new_session(settings):
             # Scrape Stage 3 - Scanning
             scrape_stage = 3
 
+            tot = Thread(target=timeout_thread, name="timeout_thread")
+            tot.start()
+
             # Initializes submit thread. Takes files added to list_to_submit array and submits them to AL server
             st = Thread(target=submit_thread, args=(terminal_id,), name="submit_thread")
             st.start()
@@ -292,58 +297,61 @@ def block_event(action, device):
 
     device_id = device.device_node
 
-    if session_id == '' or dev_detected:
+    # print device_id, action
 
-        # Called when a device is added
-        if action == 'add':
+    # Called when a device is added
+    if action == 'add':
 
-            # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
-            # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
-            if not dev_detected:
-                socketIO.emit('be_device_event', 'new_detected')
-                dev_detected = True
+        # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
+        # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
+        if not dev_detected:
+            socketIO.emit('be_device_event', 'new_detected')
+            dev_detected = True
 
-            if device.subsystem == 'block':
+        if device.subsystem == 'block':
 
-                # The DEVTYPE "disk" occurs once when a new device is detected
-                if device.get('DEVTYPE') == 'disk' and session_id == '':
+            # The DEVTYPE "disk" occurs once when a new device is detected
+            if device.get('DEVTYPE') == 'disk' and session_id == '':
 
-                    # Logs that we have officially started a session for this device
-                    session_id = device_id
+                # Logs that we have officially started a session for this device
+                session_id = device_id
 
-                    # Announces a new device has been detected to front end
-                    socketIO.emit('be_device_event', 'connected')
+                # Announces a new device has been detected to front end
+                socketIO.emit('be_device_event', 'connected')
 
-                    # Creates a new session
-                    Thread(target=session_login, name='session_login').start()
+                # Creates a new session
+                Thread(target=session_login, name='session_login').start()
 
-                    # Makes new folder to hold partitions from this disk
-                    path_new = os.path.normpath('/tmp/imported_files' + device_id)
-                    path_split = path_new.split(os.sep)
-                    dir_new = ''
-                    for x in path_split[:-1]:
-                        dir_new += x + '/'
-                    os.system('mkdir -p ' + dir_new)
+                # Makes new folder to hold partitions from this disk
+                path_new = os.path.normpath('/tmp/imported_files' + device_id)
+                path_split = path_new.split(os.sep)
+                dir_new = ''
+                for x in path_split[:-1]:
+                    dir_new += x + '/'
+                os.system('mkdir -p ' + dir_new)
 
-                # The DEVTYPE "partition" occurs once for each partition on a given device. If the device is not
-                # partitioned, this event will still fire once for the main device drive
-                elif device.get('DEVTYPE') == 'partition':
+            # The DEVTYPE "partition" occurs once for each partition on a given device. If the device is not
+            # partitioned, this event will still fire once for the main device drive
+            elif device.get('DEVTYPE') == 'partition':
+
+                if device.parent.device_node == session_id:
 
                     # Adds this device to the array of devices that are currently connected
                     devices_to_read.append(device_id)
 
-                    # Creates new thread to copy all files from this partition to our directory that is being watched by the
-                    # submit thread
+                    # Creates new thread to copy all files from this partition to our directory that is being watched
+                    # by the submit thread
                     Thread(target=copy_files, args=(device_id,), name=device_id).start()
 
-        # Called when an active device is removed. Clears the imported cart files
-        elif action == 'remove':
+    # Called when an active device is removed. Clears the imported cart files
+    elif action == 'remove' and device_id == session_id:
 
-            if dev_detected:
-                socketIO.emit('be_device_event', 'remove_detected')
-                time.sleep(0.1)
-                clear_files()
-            dev_detected = False
+        if dev_detected:
+            socketIO.emit('be_device_event', 'remove_detected')
+            time.sleep(0.1)
+            clear_files()
+
+        dev_detected = False
 
 
 def copy_files(device_id):
@@ -399,7 +407,7 @@ def clear_files():
     device_removed = True
 
     # Resets scrape_stage and devices_to_read
-    scrape_stage = 0
+    scrape_stage = 4
     devices_to_read = []
 
     # If our device was ejected prematurely, emits when pass / mal files were received before removal
@@ -444,6 +452,7 @@ def submit_thread(queue):
     global socketIO
     global list_to_receive
     global terminal_id
+    global timeout_timer
 
     my_logger.info("Submit thread: begin")
 
@@ -456,6 +465,8 @@ def submit_thread(queue):
 
             # Pops a file path from the list of files to be submitted
             ingest_path = list_to_submit.pop()
+
+            timeout_timer = 0
 
             # Appends the file to the array of files in regards to which we are waiting for a response from the
             # Assemblyline server
@@ -499,6 +510,7 @@ def receive_thread(queue):
     global devices_to_read
     global terminal
     global socketIO
+    global timeout_timer
 
     my_logger.info("Receive thread: begin")
 
@@ -515,6 +527,9 @@ def receive_thread(queue):
             # a result is output
             for msg in msgs:
                 new_file = os.path.basename(msg['metadata']['path'])
+
+                timeout_timer = 0
+
                 if new_file in list_to_receive:
 
                     score = msg['metadata']['al_score']
@@ -534,6 +549,26 @@ def receive_thread(queue):
             time.sleep(1)
 
     my_logger.info("Receive thread: finished")
+
+
+def timeout_thread():
+    """
+    Runs concurrently with submit and receive threads. If our script goes 45 seconds without sending or receiving
+    anything from the server, times out our application
+    :return:
+    """
+
+    global timeout_timer, scrape_stage
+
+    while timeout_timer != 45 and scrape_stage != 4:
+        timeout_timer += 1
+        time.sleep(1)
+
+    if scrape_stage != 4:
+        scrape_stage = 4
+        time.sleep(0.1)
+        socketIO.emit('be_device_event', 'timeout', pass_files, mal_files)
+        refresh_session()
 
 
 # ============== Initialization ==============
