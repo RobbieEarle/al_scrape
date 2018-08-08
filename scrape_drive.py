@@ -560,7 +560,7 @@ def timeout_thread():
 
     global timeout_timer, scrape_stage
 
-    while timeout_timer != 45 and scrape_stage != 4:
+    while timeout_timer != 60 and scrape_stage != 4:
         timeout_timer += 1
         time.sleep(1)
 
