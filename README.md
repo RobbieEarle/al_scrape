@@ -18,14 +18,13 @@ VM is running. Assemblyline Scrape's purpose is as follows:
 
 ### Pre-requisites
 
-- Host machine should be running fresh Ubuntu 16.04.x Desktop install
+Host machine should be running fresh Ubuntu 16.04.x Desktop install
 
 ### On Host Machine
 
 ##### Setting Up VirtualBox
 
-- Install VirtualBox
+Install VirtualBox
 
-`sudo apt-get install virtualbox`
-
-`sudo apt-get install virtualbox-dkms`
+- `sudo apt-get install virtualbox`
+- `sudo apt-get install virtualbox-dkms`
