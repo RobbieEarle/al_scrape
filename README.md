@@ -22,9 +22,20 @@ Host machine should be running fresh Ubuntu 16.04.x Desktop install
 
 ### On Host Machine
 
-##### Setting Up VirtualBox
-
-Install VirtualBox
+##### Installing VirtualBox
 
 - `sudo apt-get install virtualbox`
 - `sudo apt-get install virtualbox-dkms`
+- `sudo apt-get install virtualbox-ext-pack`
+- `sudo apt-get install linux-headers generic`
+
+##### Signing Kernel Modules
+
+- `openssl req -new -x509 -newkey rsa:2048 -keyout MOK.priv -outform DER -out MOK.der -nodes -days 36500 -subj 
+"/CN=al_scrape/"`
+- `sudo /usr/src/linux-headers-$(uname -r)/scripts/sign-file sha256 ./MOK.priv ./MOK.der $(modinfo -n vboxdrv)`
+- `tail $(modinfo -n vboxdrv) | grep "Module signature appended"`
+- `sudo mokutil --import MOK.der"`
+- `mokutil --test-key MOK.der`
+
+Reboot, perform MDK management, enroll MDK, continue, enroll key, enter pw, reboot
