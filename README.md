@@ -1,18 +1,18 @@
 # Overview
 
-Assemblyline Scrape (al_scrape) is a script that runs in conjunction with the Assemblyline Device Audit (al_da) 
-front end application. These applications are intended to be run on a single terminal (Kiosk), into which users can
-attach block devices in order to have their contents scraped and submitted to a remote Assemblyline server for 
-analysis.
+Assemblyline Scrape (al_scrape) is a service that runs in conjunction with the Assemblyline Device Audit (al_da) 
+front end application. These applications are intended to be run together on a single terminal (Kiosk), into which
+users can attach block devices in order to have their contents scraped and submitted to a remote Assemblyline server
+for analysis.
 
-Assemblyline Scrape is intended to run perpetually as a background service within a VirtualBox VM. The machine on which
-al_da is deployed (ie. the machine hosting our front end application) should be the host machine on which the al_scrape
-VM is running. Assemblyline Scrape's purpose is as follows:
+Assemblyline Scrape is intended to run perpetually as a background service within a VirtualBox VM. The VM on which
+al_scrape is running should be hosted on a machine running al_da (ie. a machine hosting a deployment of our front end 
+application). Assemblyline Scrape's purpose is as follows:
 
 1. Listen for new devices that are attached to the Kiosk
 2. When a new block device is detected, send copies of its contents to the Assemblyline server for analysis
 3. Receive messages that come back from the server regarding potentially dangerous files
-4. Output progress updates and scan results to Assemblyline Device Audit
+4. Output progress updates and scan results to Assemblyline Device Audit front end
 
 **NOTE: Currently in the process of making an installation script that will simplify the installation process. In the
 meantime the following steps can be followed to get al_scrape working for code review*
