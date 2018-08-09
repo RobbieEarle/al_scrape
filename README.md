@@ -32,7 +32,7 @@ RAM, 20 GB storage.
 
 ### Install Ubuntu 16.04.x OS
 
-**Boot from Ubuntu 16.04.x Server install image and follow the menu guidance below:**
+##### Boot from Ubuntu 16.04.x Server install image and follow the menu guidance below:
 
 - English -> Install Ubuntu Server
 - Language: English (Default)
@@ -47,7 +47,7 @@ RAM, 20 GB storage.
 - Encrypt your home directory: No (Default)
 - Timezone: Eastern
 
-**If it prompts you that a partition is in use, select 'Yes' for unmount partitions.**
+##### If it prompts you that a partition is in use, select 'Yes' for unmount partitions.
 
 - Disk: Guided - use entire disk and set up LVM.
 - If prompted select disk to install on, this disk will be formatted.
@@ -60,7 +60,7 @@ RAM, 20 GB storage.
 
 ### On First Login
 
-**Install dependencies**
+##### Install dependencies
 
 - `sudo apt-get update`
 - `sudo apt-get upgrade`
@@ -74,7 +74,7 @@ RAM, 20 GB storage.
 - `sudo pip install socketio==0.1.3`
 - `sudo pip install socketio-client==0.7.2`
 
-**Install al_scrape**
+##### Install al_scrape
 
 - `cd /home/user`
 - `sudo git clone https://github.com/RobbieEarle/al_scrape.git`
@@ -91,7 +91,7 @@ RAM, 20 GB storage.
 - `sudo chmod 700 image_device_firmware.sh`
 - `sudo chmod 700 remove_dev_img.sh`
 
-**Make al_scrape run as a service**
+##### Make al_scrape run as a service
     
 - `sudo vi /lib/systemd/system/al_scrape.service`
 - Add the following content to this file:
@@ -111,7 +111,7 @@ WantedBy=multi-user.target
 - `sudo systemctl enable al_scrape.service`
 - `sudo systemctl start al_scrape.service`
 
-**Create VM snapshot**
+##### Create VM snapshot
 
 - `sudo service al_scrape restart`
 - Open up VirtualBox on your host machine and click on alda_sandbox (which should be running)
