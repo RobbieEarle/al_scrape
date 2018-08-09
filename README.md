@@ -21,14 +21,14 @@ meantime the following steps can be followed to get al_scrape working*
 
 ### Pre-requisites
 
-- VirtualBox should be installed along with all other necessary pre-requisites, as described in the first part of
-[these instructions](https://github.com/RobbieEarle/al_da)
+- [These instructions](https://github.com/RobbieEarle/al_da) should have been completed up until the point where it
+recommends installing al_scrape
 
 ### Creating new VM
 
 - Download Ubuntu 16.04.x Server install image ([here](http://releases.ubuntu.com/))
-- In VirtualBox, select New. Create a new Ubuntu (64-bit) VM and name it 'alda_sandbox'
-- Create new virtual machine in VirtualBox. Allow for at least 6000 MB RAM, 20 GB storage.
+- In VirtualBox, select New. Create a new Ubuntu (64-bit) VM and name it 'alda_sandbox'. Allow for at least 6000 MB 
+RAM, 20 GB storage.
 
 ### Install Ubuntu 16.04.x OS
 
@@ -51,11 +51,11 @@ meantime the following steps can be followed to get al_scrape working*
 
 - Disk: Guided - use entire disk and set up LVM.
 - If prompted select disk to install on, this disk will be formatted.
-- Write changes to disk: <YES>
+- Write changes to disk: \<YES>
 - Choose: No automatic updates
 - Ensure 'standard system utilities' and 'OpenSSH server' is checked and continue.
-- Install Grub boot loader: <YES>
-- Installation complete <Continue>
+- Install Grub boot loader: \<YES>
+- Installation complete \<Continue>
 - The system will reboot.
 
 ### On First Login
@@ -80,10 +80,10 @@ meantime the following steps can be followed to get al_scrape working*
 - `cd /home/user/al_scrape/bash_scripts`
 - `sudo visudo`
     - Beneath `%sudo    ALL=(ALL:ALL) ALL` enter:
-        - `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/mount_block.sh`
-        - `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/unmount_block.sh`
-        - `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/image_device_firmware.sh`
-        - `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/remove_dev_img.sh`
+        - >`user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/mount_block.sh`\
+        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/unmount_block.sh`\
+        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/image_device_firmware.sh`\
+        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/remove_dev_img.sh`
     - Press ctrl-x to exit, y to save, and enter to overwrite existing visudo file
 - `sudo chmod 700 mount_block.sh`
 - `sudo chmod 700 unmount_block.sh`
