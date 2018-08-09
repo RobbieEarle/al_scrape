@@ -60,7 +60,7 @@ RAM, 20 GB storage.
 
 ### On First Login
 
-**Install Dependencies**
+**Install dependencies**
 
 - `sudo apt-get update`
 - `sudo apt-get upgrade`
@@ -119,7 +119,7 @@ WantedBy=multi-user.target
 - Click on 'Take'
 - Name your new snapshot alda_clean
 
-**Done**
+### Done
 
 At this point al_scrape should be running as a service at all times on this VM (you can check its status with
 `sudo service al_scrape status`). We can now exit our new VM and finish installing al_da by following the instructions 
