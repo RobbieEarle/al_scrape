@@ -14,10 +14,10 @@ VM is running. Assemblyline Scrape's purpose is as follows:
 3. Receive messages that come back from the server regarding potentially dangerous files
 4. Output progress updates and scan results to Assemblyline Device Audit
 
-# Installation
-
 **NOTE: Currently in the process of making an installation script that will simplify the installation process. In the
-meantime the following steps can be followed to get al_scrape working*
+meantime the following steps can be followed to get al_scrape working for code review*
+
+# Installation
 
 ### Pre-requisites
 
