@@ -111,7 +111,7 @@ WantedBy=multi-user.target
 - `sudo systemctl enable al_scrape.service`
 - `sudo systemctl start al_scrape.service`
 
-##### Create VM snapshot
+### Create VM snapshot
 
 - `sudo service al_scrape restart`
 - Open up VirtualBox on your host machine and click on alda_sandbox (which should be running)
