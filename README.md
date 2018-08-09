@@ -64,6 +64,7 @@ RAM, 20 GB storage.
 
 - `sudo apt-get update`
 - `sudo apt-get upgrade`
+- `sudo apt install git`
 - `sudo apt install python2.7 python-pip`
 - `sudo pip install assemblyline-client==3.7.3`
 - `sudo pip install cryptography==2.3`
