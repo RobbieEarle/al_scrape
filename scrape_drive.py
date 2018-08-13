@@ -512,49 +512,49 @@ def receive_thread(queue):
     :return:
     """
 
-    global pass_files, mal_files, list_to_submit, devices_to_read, terminal, socketIO, timeout_timer
-
-    my_logger.info('Receive thread: begin')
-
-    while 1 < scrape_stage < 4:
-
-        # Listens for events only if we are expecting more files from this session
-        if len(list_to_receive):
-
-            # Takes all messages from the Assemblyline server and stores in list
-            msgs = terminal.ingest.get_message_list(queue)
-
-            # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
-            # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time
-            # a result is output
-            for msg in msgs:
-                new_file = os.path.basename(msg['metadata']['path'])
-
-                # Resets timeout timer
-                timeout_timer = 0
-
-                # Makes sure this file is from our current scan (ie. we're not receiving a lingering message from a
-                # previous scan
-                if new_file in list_to_receive:
-
-                    score = msg['metadata']['al_score']
-                    sid = msg['alert']['sid']
-                    socketIO.emit('be_ingest_status', 'receive_file', new_file)
-
-                    # If our score is greater than 500, add to list of malicious files
-                    if score >= 500:
-                        mal_files.append(sid)
-                    # Otherwise, add to list of safe files
-                    else:
-                        pass_files.append(sid)
-
-                    list_to_receive.remove(new_file)
-
-        else:
-            check_done()
-            time.sleep(1)
-
-    my_logger.info('Receive thread: finished')
+    # global pass_files, mal_files, list_to_submit, devices_to_read, terminal, socketIO, timeout_timer
+    #
+    # my_logger.info('Receive thread: begin')
+    #
+    # while 1 < scrape_stage < 4:
+    #
+    #     # Listens for events only if we are expecting more files from this session
+    #     if len(list_to_receive):
+    #
+    #         # Takes all messages from the Assemblyline server and stores in list
+    #         msgs = terminal.ingest.get_message_list(queue)
+    #
+    #         # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
+    #         # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time
+    #         # a result is output
+    #         for msg in msgs:
+    #             new_file = os.path.basename(msg['metadata']['path'])
+    #
+    #             # Resets timeout timer
+    #             timeout_timer = 0
+    #
+    #             # Makes sure this file is from our current scan (ie. we're not receiving a lingering message from a
+    #             # previous scan
+    #             if new_file in list_to_receive:
+    #
+    #                 score = msg['metadata']['al_score']
+    #                 sid = msg['alert']['sid']
+    #                 socketIO.emit('be_ingest_status', 'receive_file', new_file)
+    #
+    #                 # If our score is greater than 500, add to list of malicious files
+    #                 if score >= 500:
+    #                     mal_files.append(sid)
+    #                 # Otherwise, add to list of safe files
+    #                 else:
+    #                     pass_files.append(sid)
+    #
+    #                 list_to_receive.remove(new_file)
+    #
+    #     else:
+    #         check_done()
+    #         time.sleep(1)
+    #
+    # my_logger.info('Receive thread: finished')
 
 
 def timeout_thread():
