@@ -558,10 +558,10 @@ def receive_thread(queue):
                         # ingest the file again with the ignore_cache flag set to true. This will give the file a brand
                         # new SID and create a new submission
                         try:
-                            terminal.submission(file_info['score'])
+                            terminal.submission(file_info['sid'])
                             mal_files.append(file_info)
                             os.system('rm -f \'' + msg['metadata']['path'] + '\'')
-                        except Exception as e:
+                        except Exception:
                             socketIO.emit('be_ingest_status', 'submit_file', msg['metadata']['path'])
                             terminal.ingest(msg['metadata']['path'],
                                             metadata={'path': msg['metadata']['path'],
