@@ -573,7 +573,7 @@ def timeout_thread():
 
     # Continuously increments our timeout timer up every second until stage 4 is reached (scan finished), or until
     # timeout occurs
-    while timeout_timer != 60 and scrape_stage != 4:
+    while timeout_timer != 120 and scrape_stage != 4:
         timeout_timer += 1
         time.sleep(1)
 
