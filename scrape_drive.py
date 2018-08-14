@@ -483,8 +483,7 @@ def submit_thread(queue):
             # Checks to make sure the file at this path still exists
             if os.path.exists(ingest_path):
 
-                # Checks if the file is empty; ingest is unable to examine empty files. Returns a warning if one is
-                # submitted
+                # Checks if the file is empty; ingest is unable to examine empty files
                 if os.stat(ingest_path).st_size != 0:
 
                     # Outputs the name of file to be ingested to the front end
@@ -530,7 +529,6 @@ def receive_thread(queue):
             # a result is output
             for msg in msgs:
                 new_file = os.path.basename(msg['metadata']['path'])
-                os.system('rm -f \'' + msg['metadata']['path'] + '\'')
 
                 # Resets timeout timer
                 timeout_timer = 0
@@ -550,7 +548,27 @@ def receive_thread(queue):
 
                     # If our score is greater than 500, add to list of malicious files
                     if file_info['score'] >= 500:
-                        mal_files.append(file_info)
+                        # This try / catch is intended to deal with files that have been previously submitted and then
+                        # deleted from the Assemblyline UI. A reference to the SID for all submitted files still exists
+                        # in the ingest API's cache even if that file is deleted from the UI, so if you attempt to
+                        # re-add this file the ingest API is going to think it's still there even though it isn't.
+                        # Because of this no new submission will be made for the file. To prevent this we take
+                        # the SID given by the ingest API and try to use it to retrieve the basic file details from the
+                        # server. If this call fails we know that the file was prematurely deleted, and thus we
+                        # ingest the file again with the ignore_cache flag set to true. This will give the file a brand
+                        # new SID and create a new submission
+                        try:
+                            terminal.submission(file_info['score'])
+                            mal_files.append(file_info)
+                            os.system('rm -f \'' + msg['metadata']['path'] + '\'')
+                        except Exception as e:
+                            socketIO.emit('be_ingest_status', 'submit_file', msg['metadata']['path'])
+                            terminal.ingest(msg['metadata']['path'],
+                                            metadata={'path': msg['metadata']['path'],
+                                                      'filename': os.path.basename(msg['metadata']['path'])},
+                                            nq=queue, ingest_type=queue, params={"ignore_cache": True})
+                        time.sleep(0.2)
+
                     # Otherwise, add to list of safe files
                     else:
                         pass_files.append(file_info)
