@@ -561,6 +561,7 @@ def receive_thread(queue):
                             terminal.submission(file_info['sid'])
                             mal_files.append(file_info)
                             os.system('rm -f \'' + msg['metadata']['path'] + '\'')
+                            list_to_receive.remove(new_file)
                         except Exception:
                             socketIO.emit('be_ingest_status', 'submit_file', msg['metadata']['path'])
                             terminal.ingest(msg['metadata']['path'],
@@ -572,8 +573,7 @@ def receive_thread(queue):
                     # Otherwise, add to list of safe files
                     else:
                         pass_files.append(file_info)
-
-                    list_to_receive.remove(new_file)
+                        list_to_receive.remove(new_file)
 
         else:
             check_done()
