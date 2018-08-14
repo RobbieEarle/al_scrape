@@ -246,6 +246,8 @@ def new_session(settings):
         # If we successfully receive the start message from the front end
         if scrape_stage == 2:
 
+            terminal.ingest.get_message_list(terminal_id)
+
             # Scrape Stage 3 - Scanning
             scrape_stage = 3
 
@@ -483,8 +485,7 @@ def submit_thread(queue):
             # Checks to make sure the file at this path still exists
             if os.path.exists(ingest_path):
 
-                # Checks if the file is empty; ingest is unable to examine empty files. Returns a warning if one is
-                # submitted
+                # Checks if the file is empty; ingest is unable to examine empty files
                 if os.stat(ingest_path).st_size != 0:
 
                     # Outputs the name of file to be ingested to the front end
@@ -493,10 +494,9 @@ def submit_thread(queue):
                     # Ingests the file (submits to Assemblyline server via ingest API)
                     terminal.ingest(ingest_path,
                                     metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                    nq=queue, ingest_type=terminal_id)
+                                    nq=queue, ingest_type=queue)
 
-                    # Deletes this file
-                    os.system('rm -f \'' + ingest_path + '\'')
+                    time.sleep(0.2)
 
         else:
             time.sleep(1)
@@ -537,18 +537,43 @@ def receive_thread(queue):
                 # previous scan
                 if new_file in list_to_receive:
 
-                    score = msg['metadata']['al_score']
-                    sid = msg['alert']['sid']
+                    file_info = {
+                        'name': new_file,
+                        'sid': msg['alert']['sid'],
+                        'score': msg['metadata']['al_score'],
+                        'path': msg['metadata']['path']
+                    }
+
                     socketIO.emit('be_ingest_status', 'receive_file', new_file)
 
                     # If our score is greater than 500, add to list of malicious files
-                    if score >= 500:
-                        mal_files.append(sid)
+                    if file_info['score'] >= 500:
+                        # This try / catch is intended to deal with files that have been previously submitted and then
+                        # deleted from the Assemblyline UI. A reference to the SID for all submitted files still exists
+                        # in the ingest API's cache even if that file is deleted from the UI, so if you attempt to
+                        # re-add this file the ingest API is going to think it's still there even though it isn't.
+                        # Because of this no new submission will be made for the file. To prevent this we take
+                        # the SID given by the ingest API and try to use it to retrieve the basic file details from the
+                        # server. If this call fails we know that the file was prematurely deleted, and thus we
+                        # ingest the file again with the ignore_cache flag set to true. This will give the file a brand
+                        # new SID and create a new submission
+                        try:
+                            terminal.submission(file_info['sid'])
+                            mal_files.append(file_info)
+                            os.system('rm -f \'' + msg['metadata']['path'] + '\'')
+                            list_to_receive.remove(new_file)
+                        except Exception:
+                            socketIO.emit('be_ingest_status', 'submit_file', msg['metadata']['path'])
+                            terminal.ingest(msg['metadata']['path'],
+                                            metadata={'path': msg['metadata']['path'],
+                                                      'filename': os.path.basename(msg['metadata']['path'])},
+                                            nq=queue, ingest_type=queue, params={"ignore_cache": True})
+                        time.sleep(0.2)
+
                     # Otherwise, add to list of safe files
                     else:
-                        pass_files.append(sid)
-
-                    list_to_receive.remove(new_file)
+                        pass_files.append(file_info)
+                        list_to_receive.remove(new_file)
 
         else:
             check_done()
@@ -568,7 +593,7 @@ def timeout_thread():
 
     # Continuously increments our timeout timer up every second until stage 4 is reached (scan finished), or until
     # timeout occurs
-    while timeout_timer != 60 and scrape_stage != 4:
+    while timeout_timer != 120 and scrape_stage != 4:
         timeout_timer += 1
         time.sleep(1)
 
