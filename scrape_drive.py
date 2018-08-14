@@ -493,8 +493,9 @@ def submit_thread(queue):
                     # Ingests the file (submits to Assemblyline server via ingest API)
                     terminal.ingest(ingest_path,
                                     metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                    nq=queue, ingest_type=terminal_id)
+                                    nq=queue, ingest_type=queue)
 
+                    time.sleep(0.5)
                     # Deletes this file
                     # os.system('rm -f \'' + ingest_path + '\'')
 
@@ -529,6 +530,7 @@ def receive_thread(queue):
             # a result is output
             for msg in msgs:
                 new_file = os.path.basename(msg['metadata']['path'])
+                os.system('rm -f \'' + msg['metadata']['path'] + '\'')
 
                 # Resets timeout timer
                 timeout_timer = 0
