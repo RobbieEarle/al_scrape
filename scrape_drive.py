@@ -246,6 +246,8 @@ def new_session(settings):
         # If we successfully receive the start message from the front end
         if scrape_stage == 2:
 
+            terminal.ingest.get_message_list(terminal_id)
+
             # Scrape Stage 3 - Scanning
             scrape_stage = 3
 
