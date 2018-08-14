@@ -496,7 +496,7 @@ def submit_thread(queue):
                                     nq=queue, ingest_type=terminal_id)
 
                     # Deletes this file
-                    os.system('rm -f \'' + ingest_path + '\'')
+                    # os.system('rm -f \'' + ingest_path + '\'')
 
         else:
             time.sleep(1)
