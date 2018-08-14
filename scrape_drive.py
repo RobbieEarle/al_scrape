@@ -495,7 +495,7 @@ def submit_thread(queue):
                                     metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
                                     nq=queue, ingest_type=queue)
 
-                    time.sleep(0.5)
+                    time.sleep(0.2)
                     # Deletes this file
                     # os.system('rm -f \'' + ingest_path + '\'')
 
