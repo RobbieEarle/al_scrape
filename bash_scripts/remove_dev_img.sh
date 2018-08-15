@@ -1,1 +1,0 @@
-rm -f /home/user/al_ui/temp_device/usb_firm.img
