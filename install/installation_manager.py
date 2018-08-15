@@ -77,7 +77,7 @@ class Installer(object):
 
     def upgrade_pip(self):
         self.milestone('.....updating pip')
-        self.runcmd('sudo easy_install --upgrade pip')
+        self.runcmd('sudo -H pip install --upgrade pip')
 
     def change_bash_priv(self):
         self.milestone('.....changing bash script privileges')
