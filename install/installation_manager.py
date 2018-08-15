@@ -75,6 +75,10 @@ class Installer(object):
             self.milestone('.....pip install:' + modules)
         (_, _, _) = self.runcmd(cmd_line, shell=False)
 
+    def upgrade_pip(self):
+        self.milestone('.....updating pip')
+        self.runcmd('sudo easy_install --upgrade pip')
+
     def change_bash_priv(self):
         self.milestone('.....changing bash script privileges')
         self.runcmd('sudo chmod 700 /opt/al_scrape/bash_scripts/mount_block.sh')

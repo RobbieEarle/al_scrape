@@ -15,6 +15,8 @@ def start():
             'python-pip'
         ])
 
+        installer.upgrade_pip()
+
         installer.sudo_pip_install([
             'assemblyline-client==3.7.3',
             'cryptography==2.3',
