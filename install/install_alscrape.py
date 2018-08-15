@@ -31,6 +31,9 @@ def start():
 
         installer.make_service()
 
+        installer.milestone('\r\n\r\nInstallation finished - AL Scrape is now running on this VM. You may now '
+                            'return to installing the remainder of Assemblyline Device Audit\r\n')
+
     else:
         print
         print 'Error: AL Scrape must be installed on a VM running Ubuntu 16.04.x'
