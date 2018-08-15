@@ -60,60 +60,21 @@ RAM, 20 GB storage.
 
 ### On First Login
 
-##### Install dependencies
-
-- `sudo apt-get update`
-- `sudo apt-get upgrade`
-- `sudo apt install git`
-- `sudo apt install python2.7 python-pip`
-- `sudo pip install assemblyline-client==3.7.3`
-- `sudo pip install cryptography==2.3`
-- `sudo pip install flask==1.0.2`
-- `sudo pip install inotify==0.2.9`
-- `sudo pip install pyudev==0.21.0`
-- `sudo pip install socketio==0.1.3`
-- `sudo pip install socketio-client==0.7.2`
-
 ##### Install al_scrape
 
-- `cd /home/user`
+- `sudo apt-get update`
+- `sudo apt-get -y upgrade`
+- `cd /opt`
 - `sudo git clone https://github.com/RobbieEarle/al_scrape.git`
-- `cd /home/user/al_scrape/bash_scripts`
 - `sudo visudo`
     - Beneath `%sudo    ALL=(ALL:ALL) ALL` enter:
         - >`user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/mount_block.sh`\
-        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/unmount_block.sh`\
-        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/image_device_firmware.sh`\
-        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/remove_dev_img.sh`
+        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/unmount_block.sh`
     - Press ctrl-x to exit, y to save, and enter to overwrite existing visudo file
-- `sudo chmod 700 mount_block.sh`
-- `sudo chmod 700 unmount_block.sh`
-- `sudo chmod 700 image_device_firmware.sh`
-- `sudo chmod 700 remove_dev_img.sh`
-
-##### Make al_scrape run as a service
-    
-- `sudo vi /lib/systemd/system/al_scrape.service`
-- Add the following content to this file:
-    - > [Unit]\
-Description=Copies files from device and uploads to Assemblyline server\
-After=multi-user.target\
-[Service]\
-Type=simple\
-ExecStart=/usr/bin/python2 /home/user/al_scrape/scrape_drive.py\
-StandardInput=tty-force\
-User=user\
-Restart=always\
-&nbsp; RestartSec=10\
-[Install]\
-WantedBy=multi-user.target
-- `sudo systemctl daemon-reload`
-- `sudo systemctl enable al_scrape.service`
-- `sudo systemctl start al_scrape.service`
+- `python /opt/al_scrape/install/install_alscrape.py`
 
 ### Create VM snapshot
 
-- `sudo service al_scrape restart`
 - Open up VirtualBox on your host machine and click on alda_sandbox (which should be running)
 - Click on Machine Tools > Snapshots
 - Click on 'Take'
