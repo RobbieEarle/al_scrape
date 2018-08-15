@@ -31,8 +31,7 @@ def start():
 
         installer.make_service()
 
-        installer.milestone('\r\n\r\nInstallation finished - AL Scrape is now running on this VM. You may now '
-                            'return to installing the remainder of Assemblyline Device Audit\r\n')
+        installer.milestone('\r\n\r\nInstallation finished - AL Scrape is now running on this VM.\r\n')
 
     else:
         print
