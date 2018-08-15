@@ -22,7 +22,7 @@ meantime the following steps can be followed to get al_scrape working for code r
 ### Pre-requisites
 
 - [These instructions](https://github.com/RobbieEarle/al_da) should have been completed up until the point where it
-recommends installing al_scrape
+recommends installing al_scrape.
 
 ### Creating new VM
 
