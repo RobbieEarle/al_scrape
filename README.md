@@ -96,11 +96,11 @@ RAM, 20 GB storage.
 - `sudo vi /lib/systemd/system/al_scrape.service`
 - Add the following content to this file:
     - > [Unit]\
-Description=Copies files from device and uploads to Assemblyline server
+Description=Copies files from device and uploads to Assemblyline server\
 After=multi-user.target\
 [Service]\
 Type=simple\
-ExecStart=/usr/bin/python3 /home/user/al_scrape/scrape_drive.py\
+ExecStart=/usr/bin/python2 /home/user/al_scrape/scrape_drive.py\
 StandardInput=tty-force\
 User=user\
 Restart=always\
