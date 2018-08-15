@@ -96,7 +96,7 @@ RAM, 20 GB storage.
 - `sudo vi /lib/systemd/system/al_scrape.service`
 - Add the following content to this file:
     - > [Unit]\
-Description=Copies files from device and uploads to Assemblyline server
+Description=Copies files from device and uploads to Assemblyline server\
 After=multi-user.target\
 [Service]\
 Type=simple\

@@ -1,0 +1,12 @@
+[Unit]
+Description=Copies files from device and uploads to Assemblyline server
+After=multi-user.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python2 /opt/al_scrape/scrape_drive.py
+StandardInput=tty-force
+User=user
+Restart=always
+  RestartSec=10
+[Install]
+WantedBy=multi-user.target

@@ -389,20 +389,20 @@ def copy_files(device_id):
             if device_id in devices_to_read:
 
                 # Mounts device
-                os.system('sudo ~/al_scrape/bash_scripts/mount_block.sh ' + device_id +
+                os.system('sudo /opt/al_scrape/bash_scripts/mount_block.sh ' + device_id +
                           ' /tmp/temp_device')
 
                 # Makes new directory for this partition
-                os.system('mkdir -p tmp/imported_files' + device_id)
+                os.system('mkdir -p /tmp/imported_files' + device_id)
 
                 # Copies files directly into directory to be ingested
                 os.system('cp -a /tmp/temp_device /tmp/imported_files' + device_id)
 
                 # Removes Image
-                os.system('sudo ~/al_scrape/bash_scripts/remove_dev_img.sh')
+                os.system('sudo /opt/al_scrape/bash_scripts/remove_dev_img.sh')
 
                 # Unmounts device
-                os.system('sudo ~/al_scrape/bash_scripts/unmount_block.sh /tmp/temp_device')
+                os.system('sudo /opt/al_scrape/bash_scripts/unmount_block.sh /tmp/temp_device')
 
                 # Removes this partition from our list of devices to read
                 devices_to_read.remove(device_id)
