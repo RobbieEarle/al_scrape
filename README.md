@@ -14,21 +14,18 @@ application). Assemblyline Scrape's purpose is as follows:
 3. Receive messages that come back from the server regarding potentially dangerous files
 4. Output progress updates and scan results to Assemblyline Device Audit front end
 
-**NOTE: Currently in the process of making an installation script that will simplify the installation process. In the
-meantime the following steps can be followed to get al_scrape working for code review*
-
 # Installation
 
 ### Pre-requisites
 
 - [These instructions](https://github.com/RobbieEarle/al_da) should have been completed up until the point where it
-recommends installing al_scrape.
+recommends installing al_scrape
 
 ### Creating new VM
 
 - Download Ubuntu 16.04.x Server install image ([here](http://releases.ubuntu.com/))
 - In VirtualBox, select New. Create a new Ubuntu (64-bit) VM and name it 'alda_sandbox'. Allow for at least 6000 MB 
-RAM, 20 GB storage.
+RAM, 20 GB storage
 
 ### Install Ubuntu 16.04.x OS
 
@@ -40,8 +37,8 @@ RAM, 20 GB storage.
 - Detected Keyboard Layout: No (Default)
 - Keyboard Origin: English US (Default)
 - Keyboard Layout: English US (Default)
-- Select a primary network interface (using the first enumerated interface).
-- Hostname: Your pre-determined hostname. Typically of the form al-linux-<N>.
+- Select a primary network interface (using the first enumerated interface)
+- Hostname: Your pre-determined hostname. Typically of the form al-linux-<N>
 - User: user
 - Password: xxxx
 - Encrypt your home directory: No (Default)
@@ -49,14 +46,14 @@ RAM, 20 GB storage.
 
 ##### If it prompts you that a partition is in use, select 'Yes' for unmount partitions.
 
-- Disk: Guided - use entire disk and set up LVM.
-- If prompted select disk to install on, this disk will be formatted.
+- Disk: Guided - use entire disk and set up LVM
+- If prompted select disk to install on, this disk will be formatted
 - Write changes to disk: \<YES>
 - Choose: No automatic updates
-- Ensure 'standard system utilities' and 'OpenSSH server' is checked and continue.
+- Ensure 'standard system utilities' and 'OpenSSH server' is checked and continue
 - Install Grub boot loader: \<YES>
 - Installation complete \<Continue>
-- The system will reboot.
+- The system will reboot
 
 ### On First Login
 
