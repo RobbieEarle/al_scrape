@@ -68,8 +68,10 @@ RAM, 20 GB storage.
 - `sudo git clone https://github.com/RobbieEarle/al_scrape.git`
 - `sudo visudo`
     - Beneath `%sudo    ALL=(ALL:ALL) ALL` enter:
-        - >`user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/mount_block.sh`\
-        `user ALL=(ALL) NOPASSWD: /home/user/al_scrape/bash_scripts/unmount_block.sh`
+        - >`user ALL=(ALL) NOPASSWD: /opt/al_scrape/bash_scripts/mount_block.sh`\
+        `user ALL=(ALL) NOPASSWD: /opt/al_scrape/bash_scripts/unmount_block.sh`
+    - *Note: if you set your username to something other than 'user' while setting up your OS, replace the 'user' at 
+    the beginning of the above to statements with whatever your chose
     - Press ctrl-x to exit, y to save, and enter to overwrite existing visudo file
 - `python /opt/al_scrape/install/install_alscrape.py`
 
