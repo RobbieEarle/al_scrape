@@ -144,11 +144,9 @@ def initialize():
                     # our list_to_submit
                     new_file = watch_path + '/' + filename
                     if e_type == 'IN_CREATE' and type_names[0] == 'IN_ISDIR' and filename != '':
-                        my_logger.info('Detected new directory in imported_files')
                         dir_observer.add_watch(new_file)
                         list_to_watch.append(new_file)
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
-                        my_logger.info('Detected new file in imported_files')
                         list_to_submit.append(new_file)
 
 
@@ -390,8 +388,6 @@ def copy_files(device_id):
             # Makes sure device hasn't been unplugged while waiting
             if device_id in devices_to_read:
 
-                my_logger.info('Copy files ' + device_id)
-
                 # Mounts device
                 os.system('sudo /opt/al_scrape/bash_scripts/mount_block.sh ' + device_id +
                           ' /tmp/temp_device')
@@ -468,8 +464,7 @@ def submit_thread(queue):
 
     global list_to_submit, terminal, socketIO, list_to_receive, terminal_id, timeout_timer
 
-    # -- my_logger.info('Submit thread: begin')
-    my_logger.info('Submit thread: begin. Length of list to submit: ' + str(len(list_to_submit)))
+    my_logger.info('Submit thread: begin')
 
     # Continuously monitors the list_to_submit. If a new entry is detected, uploads to server and deletes once done
     while 1 < scrape_stage < 4:
@@ -519,8 +514,7 @@ def receive_thread(queue):
 
     global pass_files, mal_files, list_to_submit, devices_to_read, terminal, socketIO, timeout_timer
 
-    # -- my_logger.info('Receive thread: begin')
-    my_logger.info('Receive thread: begin. Length of list to receive: ' + str(len(list_to_receive)))
+    my_logger.info('Receive thread: begin')
 
     while 1 < scrape_stage < 4:
 
