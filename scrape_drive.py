@@ -398,9 +398,6 @@ def copy_files(device_id):
                 # Copies files directly into directory to be ingested
                 os.system('cp -a /tmp/temp_device /tmp/imported_files' + device_id)
 
-                # Removes Image
-                os.system('sudo /opt/al_scrape/bash_scripts/remove_dev_img.sh')
-
                 # Unmounts device
                 os.system('sudo /opt/al_scrape/bash_scripts/unmount_block.sh /tmp/temp_device')
 
@@ -593,7 +590,7 @@ def timeout_thread():
 
     # Continuously increments our timeout timer up every second until stage 4 is reached (scan finished), or until
     # timeout occurs
-    while timeout_timer != 120 and scrape_stage != 4:
+    while timeout_timer != 180 and scrape_stage != 4:
         timeout_timer += 1
         time.sleep(1)
 
