@@ -75,8 +75,6 @@ sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 # ---------- Block device importing
 # The name given to this terminal
 terminal_id = ''
-# Controls whether or not a device has been found for this session yet
-session_id = ''
 # Whether or not a device has been detected yet
 dev_detected = False
 # List of all active devices (devices that are currently plugged in)
@@ -309,7 +307,7 @@ def block_event(action, device):
     :return:
     """
 
-    global devices_to_read, socketIO, session_id, dev_detected
+    global devices_to_read, socketIO, dev_detected
 
     device_id = device.device_node
 
@@ -325,10 +323,7 @@ def block_event(action, device):
         if device.subsystem == 'block':
 
             # The DEVTYPE 'disk' occurs once when a new device is detected
-            if device.get('DEVTYPE') == 'disk' and session_id == '':
-
-                # Logs that we have officially started a session for this device
-                session_id = device_id
+            if device.get('DEVTYPE') == 'disk':
 
                 # Announces a new device has been detected to front end
                 socketIO.emit('be_device_event', 'connected')
@@ -348,17 +343,15 @@ def block_event(action, device):
             # partitioned, this event will still fire once for the main device drive
             elif device.get('DEVTYPE') == 'partition':
 
-                if device.parent.device_node == session_id:
+                # Adds this device to the array of devices that are currently connected
+                devices_to_read.append(device_id)
 
-                    # Adds this device to the array of devices that are currently connected
-                    devices_to_read.append(device_id)
-
-                    # Creates new thread to copy all files from this partition to our directory that is being watched
-                    # by the submit thread
-                    Thread(target=copy_files, args=(device_id,), name=device_id).start()
+                # Creates new thread to copy all files from this partition to our directory that is being watched
+                # by the submit thread
+                Thread(target=copy_files, args=(device_id,), name=device_id).start()
 
     # Called when an active device is removed. Clears the imported cart files
-    elif action == 'remove' and device_id == session_id:
+    elif action == 'remove':
 
         if dev_detected:
             socketIO.emit('be_device_event', 'remove_detected')
