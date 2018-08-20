@@ -83,6 +83,8 @@ class Installer(object):
         self.milestone('.....changing bash script privileges')
         self.runcmd('sudo chmod 700 /opt/al_scrape/bash_scripts/mount_block.sh')
         self.runcmd('sudo chmod 700 /opt/al_scrape/bash_scripts/unmount_block.sh')
+        self.runcmd('sudo chown $USER /opt/al_scrape/bash_scripts/mount_block.sh')
+        self.runcmd('sudo chown $USER /opt/al_scrape/bash_scripts/unmount_block.sh')
 
     def make_service(self):
         self.milestone('.....registering Al Scrape as a service')
