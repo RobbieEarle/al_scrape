@@ -80,6 +80,7 @@ class Installer(object):
         self.runcmd('sudo -H pip install --upgrade pip')
 
     def setup_universe_repo(self):
+        self.milestone('.....installing universe repo')
         self.runcmd('sudo apt-get install software-properties-common')
         self.runcmd('sudo apt-add-repository universe')
         self.runcmd('sudo apt-get update')
@@ -97,4 +98,3 @@ class Installer(object):
         self.runcmd('sudo systemctl daemon-reload', piped_stdio=False)
         self.runcmd('sudo systemctl enable al_scrape.service')
         self.runcmd('sudo systemctl start al_scrape.service')
-        self.runcmd('sudo service al_scrape restart')
