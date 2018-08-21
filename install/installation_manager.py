@@ -92,3 +92,4 @@ class Installer(object):
         self.runcmd('sudo systemctl daemon-reload', piped_stdio=False)
         self.runcmd('sudo systemctl enable al_scrape.service')
         self.runcmd('sudo systemctl start al_scrape.service')
+        self.runcmd('sudo service al_scrape restart')
