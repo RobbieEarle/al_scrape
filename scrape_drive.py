@@ -312,7 +312,7 @@ def block_event(action, device):
     device_id = device.device_node
 
     my_logger.info('================= Block event: ' + str(action) + '\r\nDevice Subsystem: ' + str(device.subsystem) +
-                   '\r\nDevice Type: ' + str(device.get('DEVTYPE') + '\r\nDevice Node: ' + str(device_id)))
+                   '\r\nDevice Type: ' + str(device.get('DEVTYPE')))
 
     if device_id is not None:
         my_logger.info('===== Device ID: ' + str(device_id))
