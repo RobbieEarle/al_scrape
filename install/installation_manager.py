@@ -79,6 +79,11 @@ class Installer(object):
         self.milestone('.....updating pip')
         self.runcmd('sudo -H pip install --upgrade pip')
 
+    def setup_ssh(self):
+        self.milestone('.....setting up ssh')
+        self.runcmd('sudo apt-get install openssh-server')
+        self.runcmd('sudo service ssh restart')
+
     def setup_universe_repo(self):
         self.milestone('.....installing universe repo')
         self.runcmd('sudo apt-get install software-properties-common')
