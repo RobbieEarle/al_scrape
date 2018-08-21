@@ -311,8 +311,8 @@ def block_event(action, device):
 
     device_id = device.device_node
 
-    my_logger.info('================= Block event: ' + action + '\r\nDevice Subsystem: ' + device.subsystem +
-                   '\r\nDevice Type: ' + device.get('DEVTYPE'))
+    my_logger.info('================= Block event: ' + str(action) + '\r\nDevice Subsystem: ' + str(device.subsystem) +
+                   '\r\nDevice Type: ' + str(device.get('DEVTYPE')))
 
     # Called when a device is added
     if action == 'add':
