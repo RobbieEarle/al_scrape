@@ -9,6 +9,8 @@ def start():
 
         installer = Installer('install_alscrape')
 
+        installer.setup_universe_repo()
+
         installer.sudo_apt_get_install([
             'git',
             'python2.7',
