@@ -311,12 +311,6 @@ def block_event(action, device):
 
     device_id = device.device_node
 
-    # my_logger.info('================= Block event: ' + str(action) + '\r\nDevice Subsystem: ' + str(device.subsystem) +
-    #                '\r\nDevice Type: ' + str(device.get('DEVTYPE')))
-    #
-    # if device_id is not None:
-    #     my_logger.info('===== Device ID: ' + str(device_id))
-
     # Called when a device is added
     if action == 'add':
 
@@ -360,7 +354,12 @@ def block_event(action, device):
     elif action == 'remove':
 
         if dev_detected:
-            socketIO.emit('be_device_event', 'remove_detected')
+            # If our device was ejected prematurely, emits when pass / mal files were received before removal
+            if len(pass_files) > 0 or len(mal_files) > 0:
+                socketIO.emit('be_device_event', 'remove_detected', pass_files, mal_files)
+            # Otherwise simply tells the front end that a device has been connected
+            else:
+                socketIO.emit('be_device_event', 'remove_detected')
             time.sleep(0.1)
             clear_files()
 
@@ -420,13 +419,6 @@ def clear_files():
     # Resets scrape_stage and devices_to_read
     scrape_stage = 4
     devices_to_read = []
-
-    # If our device was ejected prematurely, emits when pass / mal files were received before removal
-    if len(pass_files) > 0 or len(mal_files) > 0:
-        socketIO.emit('be_device_event', 'disconnected', pass_files, mal_files)
-    # Otherwise simply tells the front end that a device has been connected
-    else:
-        socketIO.emit('be_device_event', 'disconnected')
 
     # Goes through all watched folders in our imported_files directory and manually removes watches
     for directory in reversed(list_to_watch):
