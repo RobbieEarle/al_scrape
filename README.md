@@ -61,6 +61,7 @@ RAM, 20 GB storage
 
 - `sudo apt-get update`
 - `sudo apt-get -y upgrade`
+- `sudo apt install python`
 - `cd /opt`
 - `sudo git clone https://github.com/RobbieEarle/al_scrape.git`
 - `sudo visudo`

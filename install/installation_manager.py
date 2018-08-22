@@ -79,6 +79,17 @@ class Installer(object):
         self.milestone('.....updating pip')
         self.runcmd('sudo -H pip install --upgrade pip')
 
+    def setup_ssh(self):
+        self.milestone('.....setting up ssh')
+        self.runcmd('sudo apt-get install openssh-server')
+        self.runcmd('sudo service ssh restart')
+
+    def setup_universe_repo(self):
+        self.milestone('.....installing universe repo')
+        self.runcmd('sudo apt-get install software-properties-common')
+        self.runcmd('sudo apt-add-repository universe')
+        self.runcmd('sudo apt-get update')
+
     def change_bash_priv(self):
         self.milestone('.....changing bash script privileges')
         self.runcmd('sudo chmod 700 /opt/al_scrape/bash_scripts/mount_block.sh')
