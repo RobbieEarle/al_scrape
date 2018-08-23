@@ -314,13 +314,15 @@ def block_event(action, device):
     # Called when a device is added
     if action == 'add':
 
-        # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
-        # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
-        if not dev_detected:
-            socketIO.emit('be_device_event', 'new_detected')
-            dev_detected = True
-
         if device.subsystem == 'block':
+
+            # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
+            # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
+            if not dev_detected:
+                socketIO.emit('be_device_event', 'new_detected')
+                dev_detected = True
+
+            time.sleep(2)
 
             # The DEVTYPE 'disk' occurs once when a new device is detected
             if device.get('DEVTYPE') == 'disk':
