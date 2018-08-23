@@ -481,10 +481,14 @@ def submit_thread(queue):
                     # Outputs the name of file to be ingested to the front end
                     socketIO.emit('be_ingest_status', 'submit_file', os.path.basename(ingest_path))
 
-                    # Ingests the file (submits to Assemblyline server via ingest API)
-                    terminal.ingest(ingest_path,
-                                    metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                    nq=queue, ingest_type=queue)
+                    time.sleep(0.2)
+
+                    my_logger.info(str(os.stat(ingest_path).st_size))
+
+                    # # Ingests the file (submits to Assemblyline server via ingest API)
+                    # terminal.ingest(ingest_path,
+                    #                 metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
+                    #                 nq=queue, ingest_type=queue)
 
                     time.sleep(0.2)
 
