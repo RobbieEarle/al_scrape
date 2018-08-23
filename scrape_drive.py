@@ -481,14 +481,29 @@ def submit_thread(queue):
                     # Outputs the name of file to be ingested to the front end
                     socketIO.emit('be_ingest_status', 'submit_file', os.path.basename(ingest_path))
 
-                    time.sleep(0.2)
+                    # Checks if our file is larger than 100MB. If so, automatically registers an alert and does not
+                    # submit (assemblyline will not accept a file over 100MB)
+                    if os.stat(ingest_path).st_size > 99999999:
 
-                    my_logger.info(str(os.stat(ingest_path).st_size))
+                        file_info = {
+                            'name': os.path.basename(ingest_path),
+                            'sid': 'N/A',
+                            'score': 500,
+                            'path': ingest_path,
+                            'ingested': False
+                        }
+                        mal_files.append(file_info)
 
-                    # # Ingests the file (submits to Assemblyline server via ingest API)
-                    # terminal.ingest(ingest_path,
-                    #                 metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                    #                 nq=queue, ingest_type=queue)
+                    else:
+
+                        try:
+                            # Ingests the file (submits to Assemblyline server via ingest API)
+                            terminal.ingest(ingest_path,
+                                            metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
+                                            nq=queue, ingest_type=queue)
+                        except Exception as e:
+                            my_logger.error('Error while attempting to ingest file ' + os.path.basename(ingest_path) +
+                                            ': ' + str(e))
 
                     time.sleep(0.2)
 
@@ -535,7 +550,8 @@ def receive_thread(queue):
                         'name': new_file,
                         'sid': msg['alert']['sid'],
                         'score': msg['metadata']['al_score'],
-                        'path': msg['metadata']['path']
+                        'path': msg['metadata']['path'],
+                        'ingested': True
                     }
 
                     socketIO.emit('be_ingest_status', 'receive_file', new_file)
