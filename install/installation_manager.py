@@ -81,7 +81,7 @@ class Installer(object):
 
     def setup_ssh(self):
         self.milestone('.....setting up ssh')
-        self.runcmd('sudo apt-get install openssh-server')
+        self.runcmd('sudo apt-get install openssh-server', piped_stdio=False)
         self.runcmd('sudo service ssh restart')
 
     def setup_universe_repo(self):
