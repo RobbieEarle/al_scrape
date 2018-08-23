@@ -493,6 +493,7 @@ def submit_thread(queue):
                             'ingested': False
                         }
                         mal_files.append(file_info)
+                        list_to_receive.remove(os.path.basename(ingest_path))
 
                     else:
 
