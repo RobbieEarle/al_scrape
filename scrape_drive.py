@@ -511,7 +511,7 @@ def receive_thread(queue):
 
             # Takes all messages from the Assemblyline server and stores in list
             msgs = terminal.ingest.get_message_list(queue)
-            my_logger.info('  -=-=-=-=-= MSGS Size: ' + msgs)
+            my_logger.info('  -=-=-=-=-= msg length: ' + str(len(msg)))
 
             # For each new message that comes from our Assemblyline server, outputs some info about that file. Any files
             # with a score over 500 have their sid added to the mal_files list. We subtract 1 from num_waiting each time

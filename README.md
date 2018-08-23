@@ -74,12 +74,20 @@ RAM, 20 GB storage
     - Press ctrl-x to exit, y to save, and enter to overwrite existing visudo file
 - `python /opt/al_scrape/install/install_alscrape.py`
 
+### Allow al_scrape to detect USB devices
+
+- Close VirtualBox entirely
+- `sudo adduser $USER vboxusers`
+- Log out and log back in again
+- Open VirtualBox
+- Select alda_sandbox and go to Machine > Settings > USB
+- Check "Enable USB Controller" and click "USB 3.0"
+
 ### Create VM snapshot
 
-- Open up VirtualBox on your host machine and click on alda_sandbox (which should be running)
-- Click on Machine Tools > Snapshots
-- Click on 'Take'
-- Name your new snapshot alda_clean
+- Run alda_sandbox, log in using your credentials
+- Once VM is logged in and running, in the navigation bar go to Machine > Take Snapshot
+- Name your new snapshot alda_clean and click 'ok'
 
 ### Done
 
