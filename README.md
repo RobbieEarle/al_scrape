@@ -24,7 +24,7 @@ recommends installing al_scrape
 ### Creating new VM
 
 - Download Ubuntu 16.04.x Server install image ([here](http://releases.ubuntu.com/))
-- In VirtualBox, select New. Create a new Ubuntu (64-bit) VM and name it 'alda_sandbox'. Allow for at least 6000 MB 
+- In VirtualBox, select New. Create a new Ubuntu (64-bit) VM and name it 'alda_sandbox'. Allow for at least 10000 MB 
 RAM, 20 GB storage
 
 ### Install Ubuntu 16.04.x OS

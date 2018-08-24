@@ -512,7 +512,7 @@ def submit_thread(queue):
                             my_logger.error('Error while attempting to ingest file ' + os.path.basename(ingest_path) +
                                             ': ' + str(e))
 
-                    time.sleep(0.1)
+                    time.sleep(0.2)
 
         else:
             time.sleep(1)
