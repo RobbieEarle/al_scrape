@@ -343,7 +343,6 @@ def block_event(action, device):
             # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
             # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
             if not dev_detected:
-                socketIO.emit('be_device_event', 'new_detected')
                 dev_detected = True
 
             time.sleep(2)
@@ -377,6 +376,9 @@ def block_event(action, device):
                 Thread(target=copy_files, args=(device_id,), name=device_id).start()
 
         elif device.subsystem == 'usb' and not device_captured:
+            if not dev_detected:
+                socketIO.emit('be_device_event', 'new_detected')
+
             ct = Thread(target=capture_thread, name='capture_thread')
             ct.start()
             device_captured = True
@@ -666,7 +668,7 @@ def capture_thread():
 
     while not dev_detected and capture_timer != 8:
         capture_timer += 1
-        time.sleep()
+        time.sleep(1)
 
     if not dev_detected:
         socketIO.emit('be_device_event', 'mount_timeout')
