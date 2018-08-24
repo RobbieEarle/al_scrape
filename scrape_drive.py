@@ -3,6 +3,7 @@ from threading import Thread, Lock
 from assemblyline_client import Client
 from inotify import adapters
 from socketIO_client import SocketIO
+from logging.handlers import RotatingFileHandler
 import pyudev
 import os
 import sys
@@ -63,8 +64,10 @@ class StreamToLogger(object):
 
 # Formats our logger output
 formatter = logging.Formatter('%(name)s: %(levelname)s:\t %(message)s')
+local_handler = logging.handlers.RotatingFileHandler('/var/log/al_da_kiosk/kiosk.log', maxBytes=100000, backupCount=5)
 my_logger = logging.getLogger('[SANDBOX_VM_OUTPUT]')
 my_logger.setLevel(logging.DEBUG)
+my_logger.addHandler()
 
 # Streams stderr to our logger
 sys.stderr = StreamToLogger(my_logger, logging.ERROR)
@@ -562,7 +565,7 @@ def receive_thread(queue):
                     }
 
                     # socketIO.emit('be_ingest_status', 'receive_file', new_file)
-                    socketIO.emit('be_ingest_status', 'receive_file', str(len(list_to_receive)))
+                    socketIO.emit('be_ingest_status', 'receive_file', str(new_file + str(len(list_to_receive))))
 
                     # If our score is greater than 500, add to list of malicious files
                     if file_info['score'] >= 500:

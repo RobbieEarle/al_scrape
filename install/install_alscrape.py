@@ -11,6 +11,7 @@ def start():
 
         installer.setup_ssh()
         installer.setup_universe_repo()
+        installer.setup_logging()
 
         installer.sudo_apt_get_install([
             'git',
