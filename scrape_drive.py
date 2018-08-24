@@ -568,8 +568,7 @@ def receive_thread(queue):
                                                                           str(len(list_to_receive)) + '\r\n' +
                                                                           str(list_to_receive) + '\r\n' +
                                                                           'list_to_submit:' + '\r\n' +
-                                                                          str(len(list_to_submit)) + '\r\n' +
-                                                                          str(list_to_submit)))
+                                                                          str(len(list_to_submit))))
 
                     # If our score is greater than 500, add to list of malicious files
                     if file_info['score'] >= 500:
