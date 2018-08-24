@@ -561,7 +561,8 @@ def receive_thread(queue):
                         'ingested': True
                     }
 
-                    socketIO.emit('be_ingest_status', 'receive_file', new_file)
+                    # socketIO.emit('be_ingest_status', 'receive_file', new_file)
+                    socketIO.emit('be_ingest_status', 'receive_file', str(len(list_to_receive)))
 
                     # If our score is greater than 500, add to list of malicious files
                     if file_info['score'] >= 500:
