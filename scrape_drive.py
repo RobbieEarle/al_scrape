@@ -74,6 +74,8 @@ sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 # ============== Default Property Values ==============
 
 # ---------- Block device importing
+# Set to true once a connection has been established with our Flask app
+be_connected = False
 # The name given to this terminal
 terminal_id = ''
 # Whether or not a device has been detected yet
@@ -129,8 +131,9 @@ def initialize():
     device_observer = pyudev.MonitorObserver(monitor, block_event)
     device_observer.start()
 
-    # Tells front end that application is ready to receive device
-    socketIO.emit('be_connected')
+    while not be_connected:
+        socketIO.emit('be_request_connect', connected)
+        socketIO.wait_for_callbacks(seconds=2)
 
     # Places a watch on our imported_files folder
     dir_observer.add_watch('/tmp/imported_files')
@@ -147,6 +150,19 @@ def initialize():
                         list_to_watch.append(new_file)
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
                         list_to_submit.append(new_file)
+
+
+def connected():
+    """
+    Handshake function called when we get a return emission from our Flask app
+    :return:
+    """
+    global be_connected
+
+    be_connected = True
+
+    # Tells front end that application is ready to receive device
+    socketIO.emit('be_connected')
 
 
 def refresh_socket():
