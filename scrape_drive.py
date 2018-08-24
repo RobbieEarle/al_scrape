@@ -497,7 +497,7 @@ def submit_thread(queue):
                             'sid': 'N/A',
                             'score': 500,
                             'path': ingest_path,
-                            'ingested': False
+                            'ingested': 'large'
                         }
                         mal_files.append(file_info)
                         list_to_receive.remove(os.path.basename(ingest_path))
@@ -514,6 +514,17 @@ def submit_thread(queue):
                                             ': ' + str(e))
 
                     time.sleep(0.2)
+
+                else:
+                    file_info = {
+                        'name': os.path.basename(ingest_path),
+                        'sid': 'N/A',
+                        'score': 500,
+                        'path': ingest_path,
+                        'ingested': 'small'
+                    }
+                    mal_files.append(file_info)
+                    list_to_receive.remove(os.path.basename(ingest_path))
 
         else:
             time.sleep(1)
@@ -559,7 +570,7 @@ def receive_thread(queue):
                         'sid': msg['alert']['sid'],
                         'score': msg['metadata']['al_score'],
                         'path': msg['metadata']['path'],
-                        'ingested': True
+                        'ingested': 'yes'
                     }
 
                     # socketIO.emit('be_ingest_status', 'receive_file', new_file)
