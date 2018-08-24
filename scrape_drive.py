@@ -73,6 +73,8 @@ sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 # ============== Default Property Values ==============
 
 # ---------- Block device importing
+# Set to true once a connection has been established with our Flask app
+be_connected = False
 # The name given to this terminal
 terminal_id = ''
 # Whether or not a device has been detected yet
@@ -128,8 +130,9 @@ def initialize():
     device_observer = pyudev.MonitorObserver(monitor, block_event)
     device_observer.start()
 
-    # Tells front end that application is ready to receive device
-    socketIO.emit('be_connected')
+    while not be_connected:
+        socketIO.emit('be_request_connect', connected)
+        socketIO.wait_for_callbacks(seconds=2)
 
     # Places a watch on our imported_files folder
     dir_observer.add_watch('/tmp/imported_files')
@@ -146,6 +149,19 @@ def initialize():
                         list_to_watch.append(new_file)
                     if e_type == 'IN_CLOSE_WRITE' and filename != '':
                         list_to_submit.append(new_file)
+
+
+def connected():
+    """
+    Handshake function called when we get a return emission from our Flask app
+    :return:
+    """
+    global be_connected
+
+    be_connected = True
+
+    # Tells front end that application is ready to receive device
+    socketIO.emit('be_connected')
 
 
 def refresh_socket():
@@ -280,6 +296,12 @@ def check_done():
     """
     global socketIO, scrape_stage
 
+    my_logger.info("CHECK DONE:"
+                   "\r\nlen(devices_to_read): " + str(len(devices_to_read)) +
+                   "\r\nlen(list_to_submit): " + str(len(list_to_submit)) +
+                   "\r\nlen(list_to_receive): " + str(len(list_to_receive)) +
+                   "\r\nscrape_stage: " + str(scrape_stage))
+
     # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
     # files have returned messages from the server. If all these are true then we are finished ingesting files and
     # our submit and receive threads are shut down. Once lists have been emitted they are reset.
@@ -314,13 +336,15 @@ def block_event(action, device):
     # Called when a device is added
     if action == 'add':
 
-        # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
-        # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
-        if not dev_detected:
-            socketIO.emit('be_device_event', 'new_detected')
-            dev_detected = True
-
         if device.subsystem == 'block':
+
+            # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
+            # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
+            if not dev_detected:
+                socketIO.emit('be_device_event', 'new_detected')
+                dev_detected = True
+
+            time.sleep(2)
 
             # The DEVTYPE 'disk' occurs once when a new device is detected
             if device.get('DEVTYPE') == 'disk':
@@ -357,7 +381,7 @@ def block_event(action, device):
             # If our device was ejected prematurely, emits when pass / mal files were received before removal
             if len(pass_files) > 0 or len(mal_files) > 0:
                 socketIO.emit('be_device_event', 'remove_detected', pass_files, mal_files)
-            # Otherwise simply tells the front end that a device has been connected
+            # Otherwise simply tells the front end that a device has been removed
             else:
                 socketIO.emit('be_device_event', 'remove_detected')
             time.sleep(0.1)
@@ -479,12 +503,43 @@ def submit_thread(queue):
                     # Outputs the name of file to be ingested to the front end
                     socketIO.emit('be_ingest_status', 'submit_file', os.path.basename(ingest_path))
 
-                    # Ingests the file (submits to Assemblyline server via ingest API)
-                    terminal.ingest(ingest_path,
-                                    metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
-                                    nq=queue, ingest_type=queue)
+                    # Checks if our file is larger than 100MB. If so, automatically registers an alert and does not
+                    # submit (assemblyline will not accept a file over 100MB)
+                    if os.stat(ingest_path).st_size > 99999999:
+
+                        file_info = {
+                            'name': os.path.basename(ingest_path),
+                            'sid': 'N/A',
+                            'score': 500,
+                            'path': ingest_path,
+                            'ingested': 'large'
+                        }
+                        mal_files.append(file_info)
+                        list_to_receive.remove(os.path.basename(ingest_path))
+
+                    else:
+
+                        try:
+                            # Ingests the file (submits to Assemblyline server via ingest API)
+                            terminal.ingest(ingest_path,
+                                            metadata={'path': ingest_path, 'filename': os.path.basename(ingest_path)},
+                                            nq=queue, ingest_type=queue)
+                        except Exception as e:
+                            my_logger.error('Error while attempting to ingest file ' + os.path.basename(ingest_path) +
+                                            ': ' + str(e))
 
                     time.sleep(0.2)
+
+                else:
+                    file_info = {
+                        'name': os.path.basename(ingest_path),
+                        'sid': 'N/A',
+                        'score': 500,
+                        'path': ingest_path,
+                        'ingested': 'small'
+                    }
+                    mal_files.append(file_info)
+                    list_to_receive.remove(os.path.basename(ingest_path))
 
         else:
             time.sleep(1)
@@ -529,10 +584,17 @@ def receive_thread(queue):
                         'name': new_file,
                         'sid': msg['alert']['sid'],
                         'score': msg['metadata']['al_score'],
-                        'path': msg['metadata']['path']
+                        'path': msg['metadata']['path'],
+                        'ingested': 'yes'
                     }
 
                     socketIO.emit('be_ingest_status', 'receive_file', new_file)
+                    # socketIO.emit('be_ingest_status', 'receive_file', str(new_file + '\r\n' +
+                    #                                                       'list_to_receive:' + '\r\n' +
+                    #                                                       str(len(list_to_receive)) + '\r\n' +
+                    #                                                       str(list_to_receive) + '\r\n' +
+                    #                                                       'list_to_submit:' + '\r\n' +
+                    #                                                       str(len(list_to_submit))))
 
                     # If our score is greater than 500, add to list of malicious files
                     if file_info['score'] >= 500:
