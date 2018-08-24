@@ -67,7 +67,7 @@ formatter = logging.Formatter('%(name)s: %(levelname)s:\t %(message)s')
 local_handler = logging.handlers.RotatingFileHandler('/var/log/al_da_kiosk/kiosk.log', maxBytes=100000, backupCount=5)
 my_logger = logging.getLogger('[SANDBOX_VM_OUTPUT]')
 my_logger.setLevel(logging.DEBUG)
-my_logger.addHandler()
+my_logger.addHandler(local_handler)
 
 # Streams stderr to our logger
 sys.stderr = StreamToLogger(my_logger, logging.ERROR)
