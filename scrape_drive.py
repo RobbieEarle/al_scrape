@@ -589,7 +589,7 @@ def receive_thread(queue):
                         'ingested': 'yes'
                     }
 
-                    # # socketIO.emit('be_ingest_status', 'receive_file', new_file)
+                    socketIO.emit('be_ingest_status', 'receive_file', new_file)
                     # socketIO.emit('be_ingest_status', 'receive_file', str(new_file + '\r\n' +
                     #                                                       'list_to_receive:' + '\r\n' +
                     #                                                       str(len(list_to_receive)) + '\r\n' +
