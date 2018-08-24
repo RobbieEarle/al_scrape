@@ -3,7 +3,6 @@ from threading import Thread, Lock
 from assemblyline_client import Client
 from inotify import adapters
 from socketIO_client import SocketIO
-from logging.handlers import RotatingFileHandler
 import pyudev
 import os
 import sys
