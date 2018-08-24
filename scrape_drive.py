@@ -75,6 +75,8 @@ sys.stderr = StreamToLogger(my_logger, logging.ERROR)
 # ---------- Block device importing
 # Set to true once a connection has been established with our Flask app
 be_connected = False
+# Set to true when a device has been captured
+device_captured = False
 # The name given to this terminal
 terminal_id = ''
 # Whether or not a device has been detected yet
@@ -329,7 +331,7 @@ def block_event(action, device):
     :return:
     """
 
-    global devices_to_read, socketIO, dev_detected
+    global devices_to_read, socketIO, dev_detected, device_captured
 
     device_id = device.device_node
 
@@ -341,7 +343,6 @@ def block_event(action, device):
             # Outputs to front end that some sort of device has been attached (this way user gets a fast response when
             # they plug in their device; if we otherwise wait for a block a block event that can take a few seconds)
             if not dev_detected:
-                socketIO.emit('be_device_event', 'new_detected')
                 dev_detected = True
 
             time.sleep(2)
@@ -374,18 +375,25 @@ def block_event(action, device):
                 # by the submit thread
                 Thread(target=copy_files, args=(device_id,), name=device_id).start()
 
+        elif device.subsystem == 'usb' and not device_captured:
+            if not dev_detected:
+                socketIO.emit('be_device_event', 'new_detected')
+
+            ct = Thread(target=capture_thread, name='capture_thread')
+            ct.start()
+            device_captured = True
+
     # Called when an active device is removed. Clears the imported cart files
     elif action == 'remove':
 
-        if dev_detected:
-            # If our device was ejected prematurely, emits when pass / mal files were received before removal
-            if len(pass_files) > 0 or len(mal_files) > 0:
-                socketIO.emit('be_device_event', 'remove_detected', pass_files, mal_files)
-            # Otherwise simply tells the front end that a device has been removed
-            else:
-                socketIO.emit('be_device_event', 'remove_detected')
-            time.sleep(0.1)
-            clear_files()
+        # If our device was ejected prematurely, emits when pass / mal files were received before removal
+        if dev_detected and (len(pass_files) > 0 or len(mal_files) > 0):
+            socketIO.emit('be_device_event', 'remove_detected', pass_files, mal_files)
+        # Otherwise simply tells the front end that a device has been removed
+        else:
+            socketIO.emit('be_device_event', 'remove_detected')
+        time.sleep(0.1)
+        clear_files()
 
         dev_detected = False
 
@@ -653,6 +661,17 @@ def timeout_thread():
         time.sleep(0.1)
         socketIO.emit('be_device_event', 'timeout', pass_files, mal_files)
         refresh_session()
+
+
+def capture_thread():
+    capture_timer = 0
+
+    while not dev_detected and capture_timer != 8:
+        capture_timer += 1
+        time.sleep(1)
+
+    if not dev_detected:
+        socketIO.emit('be_device_event', 'mount_timeout')
 
 
 # ============== Initialization ==============
