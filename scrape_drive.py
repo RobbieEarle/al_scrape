@@ -365,7 +365,7 @@ def block_event(action, device):
             # If our device was ejected prematurely, emits when pass / mal files were received before removal
             if len(pass_files) > 0 or len(mal_files) > 0:
                 socketIO.emit('be_device_event', 'remove_detected', pass_files, mal_files)
-            # Otherwise simply tells the front end that a device has been connected
+            # Otherwise simply tells the front end that a device has been removed
             else:
                 socketIO.emit('be_device_event', 'remove_detected')
             time.sleep(0.1)
