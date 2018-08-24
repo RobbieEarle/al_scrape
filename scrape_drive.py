@@ -280,6 +280,12 @@ def check_done():
     """
     global socketIO, scrape_stage
 
+    my_logger.info("CHECK DONE:"
+                   "\r\nlen(devices_to_read): " + str(len(devices_to_read)) +
+                   "\r\nlen(list_to_submit): " + str(len(list_to_submit)) +
+                   "\r\nlen(list_to_receive): " + str(len(list_to_receive)) +
+                   "\r\nscrape_stage: " + str(scrape_stage))
+
     # Checks if all partitions have been mounted, all files from partitions have been ingested, and all our ingested
     # files have returned messages from the server. If all these are true then we are finished ingesting files and
     # our submit and receive threads are shut down. Once lists have been emitted they are reset.
@@ -506,7 +512,7 @@ def submit_thread(queue):
                             my_logger.error('Error while attempting to ingest file ' + os.path.basename(ingest_path) +
                                             ': ' + str(e))
 
-                    time.sleep(0.2)
+                    time.sleep(0.1)
 
         else:
             time.sleep(1)
