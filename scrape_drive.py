@@ -64,10 +64,8 @@ class StreamToLogger(object):
 
 # Formats our logger output
 formatter = logging.Formatter('%(name)s: %(levelname)s:\t %(message)s')
-local_handler = logging.handlers.RotatingFileHandler('/var/log/al_da_kiosk/kiosk.log', maxBytes=100000, backupCount=5)
 my_logger = logging.getLogger('[SANDBOX_VM_OUTPUT]')
 my_logger.setLevel(logging.DEBUG)
-my_logger.addHandler(local_handler)
 
 # Streams stderr to our logger
 sys.stderr = StreamToLogger(my_logger, logging.ERROR)
@@ -565,7 +563,13 @@ def receive_thread(queue):
                     }
 
                     # socketIO.emit('be_ingest_status', 'receive_file', new_file)
-                    socketIO.emit('be_ingest_status', 'receive_file', str(new_file + str(len(list_to_receive))))
+                    socketIO.emit('be_ingest_status', 'receive_file', str(new_file + '\r\n' +
+                                                                          'list_to_receive:' + '\r\n' +
+                                                                          str(len(list_to_receive)) + '\r\n' +
+                                                                          str(list_to_receive) + '\r\n' +
+                                                                          'list_to_submit:' + '\r\n' +
+                                                                          str(len(list_to_submit)) + '\r\n' +
+                                                                          str(list_to_submit)))
 
                     # If our score is greater than 500, add to list of malicious files
                     if file_info['score'] >= 500:

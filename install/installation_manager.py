@@ -79,13 +79,6 @@ class Installer(object):
         self.milestone('.....updating pip')
         self.runcmd('sudo -H pip install --upgrade pip')
 
-    def setup_logging(self):
-
-        self.milestone('.....creating logging directory:')
-        self.runcmd('sudo mkdir -p /var/log/al_da_kiosk')
-        self.runcmd('sudo chmod 700 /var/log/al_da_kiosk')
-        self.runcmd('sudo chown $USER /var/log/al_da_kiosk')
-
     def setup_ssh(self):
         self.milestone('.....setting up ssh')
         self.runcmd('sudo apt-get -y install openssh-server', piped_stdio=False)
